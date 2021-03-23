@@ -1,7 +1,6 @@
 package work.naveru.restservice;
 
 import org.springframework.util.Base64Utils;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
