@@ -1,0 +1,54 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>PDFImage</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+</head>
+<body>
+PDFファイル：
+<input type="file" id="sel_file"/>
+<form action="./pdf/image" method="post">
+    <input type="hidden" id="file-base64" name="pdf64" />
+    <input type="hidden" id="file-name" name="filename" />
+    <input type="submit" val="送信" />
+</form>
+
+<script >
+function setToAddBase64(event) {
+    var input_files = event.target.files || event.dataTransfer.files;
+
+    if(!input_files.length) {
+        return;
+    }
+    var file = input_files[0];
+    var fr = new FileReader();
+    // jsでbase64化するとmime情報が設定される。
+    // "base64,"以降を素のbase64とする
+    var BASE64_POS = "base64,"
+    fr.onload = function(evt) {
+        console.log("onload");
+        var base64withMime = evt.target.result;
+        var pos = base64withMime.indexOf(BASE64_POS);
+        if (pos < 0) {
+            alert("ファイル取得失敗。やり直しをお願いします");
+            return;
+        }
+        var base64 = 	base64withMime.substr(pos + BASE64_POS.length);
+        console.log("base64");
+        $('#file-base64').val(base64);
+        $('#file-name').val(file.name);
+    }
+    fr.readAsDataURL(file);
+}
+
+$(function(){
+    console.log("fst");
+    $("#sel_file").on("change", function(event){
+        console.log("change");
+        setToAddBase64(event);
+    });
+});
+</script>
+</body>
+</html>
