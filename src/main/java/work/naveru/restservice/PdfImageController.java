@@ -11,14 +11,6 @@ import java.util.List;
 
 @RestController
 public class PdfImageController {
-    @GetMapping("/pdf")
-    public Greeting pdf() {
-        return new Greeting(100, "pdf");
-    }
-    @GetMapping("/pdf/image")
-    public Greeting pdfimage() {
-        return new Greeting(100, "pdfimage");
-    }
     @PostMapping("/pdf/image")
     public PdfImage getImage(@RequestParam(value = "pdf64") String pdf64) throws Exception {
         byte[] pdf = Base64Utils.decodeFromString(pdf64);

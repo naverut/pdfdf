@@ -20,20 +20,6 @@ public class MakeImage {
     private static final int DPI = 72;
 
     /**
-     * 動作確認用
-     * @param args
-     * @throws Exception
-     */
-    public static void main(String[] args) throws Exception {
-        byte[] bytes = Files.readAllBytes(Paths.get("c:/work/serverStartup.pdf"));
-        List<byte[]> images = getPdfImage(bytes);
-        for (int i = 0; i < images.size(); i++) {
-//            ImageIO.write(image, "jpg", new File("c:/work/xxx" + i + ".jpg"));
-            Files.write(Paths.get("c:/work/xxx" + i + ".jpg"), images.get(i));
-        }
-    }
-
-    /**
      * PDFバイト配列を画像イメージリストに変換
      * @param pdf PDFのバイト配列
      * @return 画像のリスト
