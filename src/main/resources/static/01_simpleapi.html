@@ -3,7 +3,8 @@
 <head>
     <title>PDFImage</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="./jquery-3.6.0.min.js"></script>
+    <script src="./jsrender.min.js"></script>
 </head>
 <body>
 <input type="file" id="sel_file"/>
@@ -49,7 +50,7 @@ function doPost() {
     ,   headers : { "content-type" : "application/json; charset=UTF-8" }
     ,   data : JSON.stringify(params)
     ,   dataType: 'json'
-    ,   timeout: 60000
+    ,   timeout: 600000
     }).done(function(result) {
         // 通信成功時の処理を記述
         console.log(result);
