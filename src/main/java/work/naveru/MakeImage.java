@@ -8,13 +8,20 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MakeImage {
-    private static final int DPI = 72;
-
+    public static final int DPI = 100;
+    public static final String TYPE = "jpg";
+//    public static void main(String[] args) throws Exception {
+//        byte[] bytes = Files.readAllBytes(Paths.get("C:\\work\\20210429_PDFDF_マニュアル\\PDFDF_pre .pdf"));
+//        getPdfImage(bytes);
+//    }
     /**
      * PDFバイト配列を画像イメージリストに変換
      * @param pdf PDFのバイト配列
@@ -22,7 +29,7 @@ public class MakeImage {
      * @throws Exception 例外
      */
     public static List<byte[]> getPdfImage(byte[] pdf) throws Exception {
-        return getPdfImage(pdf, DPI, "jpg");
+        return getPdfImage(pdf, DPI, TYPE);
     }
     /**
      * PDFバイト配列を画像イメージリストに変換
@@ -32,7 +39,7 @@ public class MakeImage {
      * @throws Exception 例外
      */
     public static List<byte[]> getPdfImage(byte[] pdf, int dpi) throws Exception {
-        return getPdfImage(pdf, dpi, "jpg");
+        return getPdfImage(pdf, dpi, TYPE);
     }
     /**
      * PDFバイト配列を画像イメージリストに変換

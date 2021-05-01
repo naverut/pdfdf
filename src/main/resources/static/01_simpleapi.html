@@ -7,16 +7,10 @@
 </head>
 <body>
 <input type="file" id="sel_file"/>
-<form action="http://pacific-earth-17496.herokuapp.com/pdf/image" method="post">
+<form >
     <input type="hidden" id="file-base64" name="pdf64" />
     <input type="hidden" id="file-name" name="filename" />
-    DPI:<input type="input" name="dpi" value="100"/></br>
-    <select name="type">
-        <option value="jpg">jpeg</option>
-        <option value="bmp">bmp</option>
-        <option value="png">png</option>
-    </select>
-    <input type="submit" value="送信" />
+    <input type="button" value="送信" id="send" />
 </form>
 
 <script>
@@ -38,16 +32,39 @@ function setToAddBase64(event) {
             alert("ファイル取得失敗。やり直しをお願いします");
             return;
         }
-        var base64 = 	base64withMime.substr(pos + BASE64_POS.length);
+        var base64 = base64withMime.substr(pos + BASE64_POS.length);
         $('#file-base64').val(base64);
         $('#file-name').val(file.name);
     }
     fr.readAsDataURL(file);
 }
 
+function doPost() {
+    params = {"pdf64" : $("#file-base64").val()};
+    console.log(params);
+
+    $.ajax({
+        url: './pdf/image'
+    ,   type: 'POST'
+    ,   headers : { "content-type" : "application/json; charset=UTF-8" }
+    ,   data : JSON.stringify(params)
+    ,   dataType: 'json'
+    ,   timeout: 60000
+    }).done(function(result) {
+        // 通信成功時の処理を記述
+        console.log(result);
+    }).fail(function(result) {
+        // 通信失敗時の処理を記述
+        console.log(result);
+    });
+}
+
 $(function(){
     $("#sel_file").on("change", function(event){
         setToAddBase64(event);
+    });
+    $("#send").on("click", function(event){
+        doPost();
     });
 });
 </script>

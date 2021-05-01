@@ -7,9 +7,15 @@
 </head>
 <body>
 <input type="file" id="sel_file"/>
-<form action="./pdf/image" method="post">
+<form action="http://pacific-earth-17496.herokuapp.com/pdf/image" method="post">
     <input type="hidden" id="file-base64" name="pdf64" />
     <input type="hidden" id="file-name" name="filename" />
+    DPI:<input type="input" name="dpi" value="100"/></br>
+    <select name="type">
+        <option value="jpg">jpeg</option>
+        <option value="bmp">bmp</option>
+        <option value="png">png</option>
+    </select>
     <input type="submit" value="送信" />
 </form>
 

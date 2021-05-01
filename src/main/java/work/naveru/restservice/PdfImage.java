@@ -11,4 +11,5 @@ public class PdfImage {
     public List<String> getImage64s() {
         return this.image64s;
     }
+
 }
