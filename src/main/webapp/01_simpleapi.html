@@ -7,21 +7,28 @@
     <script src="./js/jsrender.min.js"></script>
 </head>
 <body>
-<input type="file" id="sel_file"/>
-<form >
-    <input type="hidden" id="file-base64" name="pdf64" />
-    <input type="hidden" id="file-name" name="filename" />
-    <input type="button" value="送信" id="send" />
-</form>
+<input type="file" id="select-file" accept=".pdf"/>
+<input type="hidden" id="file-base64" name="pdf64" />
+<input type="hidden" id="file-name" name="filename" />
+
+<table border="1">
+    <tr id="images-pos"></tr>
+</table>
+<script id="image-tags" type="text/x-jsrender">
+    <tr class="pages" data-page="{{:idx}}">
+        <td>
+            <img src="data:image/png;base64,{{:imageData}}" />
+        </td>
+    </tr>
+</script>
 
 <script>
-function setToAddBase64(event) {
-    var input_files = event.target.files || event.dataTransfer.files;
+/**
+ * fileをbase64として取得する
+ */
+function getFileBase64(file) {
+	var deferred = new $.Deferred;
 
-    if(!input_files.length) {
-        return;
-    }
-    var file = input_files[0];
     var fr = new FileReader();
     // jsでbase64化するとmime情報が設定される。
     // "base64,"以降を素のbase64とする
@@ -34,15 +41,18 @@ function setToAddBase64(event) {
             return;
         }
         var base64 = base64withMime.substr(pos + BASE64_POS.length);
-        $('#file-base64').val(base64);
-        $('#file-name').val(file.name);
+		deferred.resolve(base64);
     }
     fr.readAsDataURL(file);
+
+	return deferred.promise();
 }
 
-function doPost() {
+/**
+ * PDFの画像イメージをAPI取得する
+ */
+function getPdfImage() {
     params = {"pdf64" : $("#file-base64").val()};
-    console.log(params);
 
     $.ajax({
         url: './pdf/image'
@@ -50,22 +60,47 @@ function doPost() {
     ,   headers : { "content-type" : "application/json; charset=UTF-8" }
     ,   data : JSON.stringify(params)
     ,   dataType: 'json'
-    ,   timeout: 600000
+    ,   timeout: 600000 // PDFの解析なので1分くらい待つ
     }).done(function(result) {
-        // 通信成功時の処理を記述
-        console.log(result);
+        // 画像の一覧表示
+        viewListImages(result.image64s);
     }).fail(function(result) {
-        // 通信失敗時の処理を記述
-        console.log(result);
+        // 一覧を削除してアラート表示
+        $('.pages').remove();
+        alert("エラー発生:");
     });
 }
 
+/**
+ * 画像イメージLISTを表示する
+ * @param imageList
+ */
+function viewListImages(image64List) {
+    $('.pages').remove();
+    var $imagesPos = $('#images-pos');
+    for (var idx = 0; idx < image64List.length; idx++) {
+        var image64 = image64List[idx];
+        var $addImage = $($('#image-tags').render({"idx" : idx, "imageData" : image64}));
+        $addImage.insertBefore($imagesPos);
+    }
+}
+
 $(function(){
-    $("#sel_file").on("change", function(event){
-        setToAddBase64(event);
-    });
-    $("#send").on("click", function(event){
-        doPost();
+    /**
+     * ファイル選択時にbase64項目にファイルのbase64値を配置する
+     */
+    $("#select-file").on("change", function(event){
+        var input_files = event.target.files || event.dataTransfer.files;
+
+        if(!input_files.length) {
+            return;
+        }
+        var file = input_files[0];
+
+        getFileBase64(file).done(function(base64){
+            $('#file-base64').val(base64);
+            getPdfImage();
+        });
     });
 });
 </script>
