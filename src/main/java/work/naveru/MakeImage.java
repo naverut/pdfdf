@@ -18,8 +18,9 @@ import java.util.List;
 public class MakeImage {
     public static final int DPI = 100;
     public static final String TYPE = "jpg";
+// ローカルテスト用。mainが複数あるとSpringが起動しないことがあるためコメント化
 //    public static void main(String[] args) throws Exception {
-//        byte[] bytes = Files.readAllBytes(Paths.get("C:\\work\\20210429_PDFDF_マニュアル\\PDFDF_pre .pdf"));
+//        byte[] bytes = Files.readAllBytes(Paths.get("C:\\work\\hoge.pdf"));
 //        getPdfImage(bytes);
 //    }
     /**
