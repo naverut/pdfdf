@@ -1,55 +1,10 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-    <title>PDFImage</title>
+    <title>PDFを比較するまでの軌跡</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
 </head>
 <body>
-<input type="file" id="sel_file"/>
-<form action="http://pacific-earth-17496.herokuapp.com/pdf/image" method="post">
-    <input type="hidden" id="file-base64" name="pdf64" />
-    <input type="hidden" id="file-name" name="filename" />
-    DPI:<input type="input" name="dpi" value="100"/></br>
-    <select name="type">
-        <option value="jpg">jpeg</option>
-        <option value="bmp">bmp</option>
-        <option value="png">png</option>
-    </select>
-    <input type="submit" value="送信" />
-</form>
-
-<script>
-function setToAddBase64(event) {
-    var input_files = event.target.files || event.dataTransfer.files;
-
-    if(!input_files.length) {
-        return;
-    }
-    var file = input_files[0];
-    var fr = new FileReader();
-    // jsでbase64化するとmime情報が設定される。
-    // "base64,"以降を素のbase64とする
-    var BASE64_POS = "base64,"
-    fr.onload = function(evt) {
-        var base64withMime = evt.target.result;
-        var pos = base64withMime.indexOf(BASE64_POS);
-        if (pos < 0) {
-            alert("ファイル取得失敗。やり直しをお願いします");
-            return;
-        }
-        var base64 = 	base64withMime.substr(pos + BASE64_POS.length);
-        $('#file-base64').val(base64);
-        $('#file-name').val(file.name);
-    }
-    fr.readAsDataURL(file);
-}
-
-$(function(){
-    $("#sel_file").on("change", function(event){
-        setToAddBase64(event);
-    });
-});
-</script>
+・<a href="./01_simpleapi.html">simple API</a>PDFファイルを画像変換するだけのシンプルな構成
 </body>
 </html>
