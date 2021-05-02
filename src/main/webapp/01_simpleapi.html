@@ -5,16 +5,18 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <script src="./js/jquery-3.6.0.min.js"></script>
     <script src="./js/jsrender.min.js"></script>
+    <script src="./js/loading.js"></script>
+    <link rel="stylesheet" href="./css/loading.css">
 </head>
 <body>
 <input type="file" id="select-file" accept=".pdf"/>
 <input type="hidden" id="file-base64" name="pdf64" />
 <input type="hidden" id="file-name" name="filename" />
 
-<table border="1">
+<table border="1" id="images-list" style="display:none">
     <tr id="images-pos"></tr>
 </table>
-<script id="image-tags" type="text/x-jsrender">
+<script id="image-tag" type="text/x-jsrender">
     <tr class="pages" data-page="{{:idx}}">
         <td>
             <img src="data:image/png;base64,{{:imageData}}" />
@@ -52,6 +54,7 @@ function getFileBase64(file) {
  * PDFの画像イメージをAPI取得する
  */
 function getPdfImage() {
+	dispLoading("イメージファイル取得中");
     params = {"pdf64" : $("#file-base64").val()};
 
     $.ajax({
@@ -64,6 +67,7 @@ function getPdfImage() {
     }).done(function(result) {
         // 画像の一覧表示
         viewListImages(result.image64s);
+		removeLoading();
     }).fail(function(result) {
         // 一覧を削除してアラート表示
         $('.pages').remove();
@@ -76,11 +80,14 @@ function getPdfImage() {
  * @param imageList
  */
 function viewListImages(image64List) {
+    // リスト初期化
     $('.pages').remove();
+    $('#images-list').show();
+
     var $imagesPos = $('#images-pos');
     for (var idx = 0; idx < image64List.length; idx++) {
         var image64 = image64List[idx];
-        var $addImage = $($('#image-tags').render({"idx" : idx, "imageData" : image64}));
+        var $addImage = $($('#image-tag').render({"idx" : idx, "imageData" : image64}));
         $addImage.insertBefore($imagesPos);
     }
 }
@@ -89,7 +96,7 @@ $(function(){
     /**
      * ファイル選択時にbase64項目にファイルのbase64値を配置する
      */
-    $("#select-file").on("change", function(event){
+    $('#select-file').on('change', function(event){
         var input_files = event.target.files || event.dataTransfer.files;
 
         if(!input_files.length) {
@@ -97,7 +104,9 @@ $(function(){
         }
         var file = input_files[0];
 
+		dispLoading("ファイル取得");
         getFileBase64(file).done(function(base64){
+    		removeLoading();
             $('#file-base64').val(base64);
             getPdfImage();
         });
