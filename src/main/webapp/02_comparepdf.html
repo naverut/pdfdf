@@ -1,0 +1,237 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>simple API</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <script src="./js/jquery-3.6.0.min.js"></script>
+    <script src="./js/jsrender.min.js"></script>
+    <script src="./js/loading.js"></script>
+    <link rel="stylesheet" href="./css/loading.css">
+</head>
+<body>
+
+<table border="0">
+    <tr>
+        <td valign="top" class="page-table" style="display:none">
+            <table border="1">
+                <tr>
+                    <td>Page</td>
+                </tr>
+                <tr class="page-pos"></tr>
+            </table>
+        </td>
+        <td valign="top">
+            <table border="1" class="image-list" data-kbn="org">
+                <tr>
+                    <td>
+                        <label style="background-color: lightgray;" for="org-pdf">
+                            元PDF選択<input id="org-pdf" class="select-file" type="file" accept=".pdf" style="display: none;"/>
+                        </label>
+                        <span class="file-name"></span>
+                    </td>
+                </tr>
+                <tr class="image-pos"></tr>
+            </table>
+        </td>
+        <td valign="top" class="dst-table" style="display:none">
+            <table border="1" class="image-list" data-kbn="dst">
+                <tr>
+                    <td>
+                        <label style="background-color: lightgray;" for="dst-pdf">
+                            先PDF選択<input id="dst-pdf" class="select-file" type="file" accept=".pdf" style="display: none;"/>
+                        </label>
+                        <span class="file-name"></span>
+                    </td>
+                </tr>
+                <tr class="image-pos"></tr>
+            </table>
+        </td>
+        <td valign="top" class="diff-table" style="display:none">
+            <table border="1">
+                <tr>
+                    <td>差分</td>
+                </tr>
+                <tr class="diff-pos"></tr>
+            </table>
+        </td>
+    </tr>
+</table>
+<script id="image-tag" type="text/x-jsrender">
+    <tr class="image-page" data-page="{{:idx}}">
+        <td valign="top">
+            <div class="canvas-wrap" data-index="{{:idx}}">
+                <canvas class="canvas canvas-light"></canvas>
+                <canvas class="canvas canvas-image"></canvas>
+            </div>
+        </td>
+    </tr>
+</script>
+
+<script>
+/**
+ * fileをbase64として取得する
+ */
+function getFileBase64(file) {
+	var deferred = new $.Deferred;
+
+    var fr = new FileReader();
+    // jsでbase64化するとmime情報が設定される。
+    // "base64,"以降を素のbase64とする
+    var BASE64_POS = "base64,"
+    fr.onload = function(evt) {
+        var base64withMime = evt.target.result;
+        var pos = base64withMime.indexOf(BASE64_POS);
+        if (pos < 0) {
+            alert("ファイル取得失敗。やり直しをお願いします");
+            return;
+        }
+        var base64 = base64withMime.substr(pos + BASE64_POS.length);
+		deferred.resolve(base64);
+    }
+    fr.readAsDataURL(file);
+
+	return deferred.promise();
+}
+
+/**
+ * PDFの画像イメージをAPI取得する
+ */
+function getPdfImage(value) {
+	var deferred = new $.Deferred;
+
+	dispLoading("イメージファイル取得中");
+    params = {"pdf64" : value};
+
+    $.ajax({
+        url: './pdf/image'
+    ,   type: 'POST'
+    ,   headers : { "content-type" : "application/json; charset=UTF-8" }
+    ,   data : JSON.stringify(params)
+    ,   dataType: 'json'
+    ,   timeout: 600000 // PDFの解析なので長めに待つ
+    }).done(function(result) {
+        // 画像の一覧表示
+		removeLoading();
+		deferred.resolve(result.image64s);
+    }).fail(function(result) {
+        // 一覧を削除してアラート表示
+        $('.pages').remove();
+        alert("エラー発生:");
+		removeLoading();
+    });
+
+	return deferred.promise();
+}
+
+/**
+ * 画像イメージLISTを表示する
+ * @param image64List
+ */
+function viewListImages(image64List, $listTop) {
+    var $imagePos = $listTop.find('.image-pos');
+
+    var img = new Array();
+    var count = 0;
+    for (var idx = 0; idx < image64List.length; idx++) {
+        img[idx] = new Image();
+
+        // 空のcanvasを表示
+        var $addImage = $($('#image-tag').render({"idx" : idx}));
+        $addImage.insertBefore($imagePos);
+
+        // 画像をcanvasに描画
+        img[idx].onload = function(event) {
+            setCanvas(event.currentTarget, $listTop, count++);
+        };
+        img[idx].src = "data:image/jpeg;base64," + image64List[idx];
+    }
+}
+
+/** 最大幅 */
+const MAX_WIDTH = 300;
+/**
+ * canvasに画像をセットする
+ */
+function setCanvas(imageTag, $listTop, idx) {
+    var $canvasWrap = $listTop.find('.canvas-wrap[data-index=' + idx + ']');
+    var $canvasImage = $canvasWrap.find('.canvas-image');
+
+    // 画像のサイズ取得
+	const width = imageTag.naturalWidth;
+	const height = imageTag.naturalHeight;
+
+	// 画像は最大幅に合わせて表示する
+	var css_width = width;
+	var css_height = height;
+	var scale = 1;
+	if (width > MAX_WIDTH) {
+		scale = MAX_WIDTH / width;
+		css_width = MAX_WIDTH;
+		css_height = height * scale;
+	}
+
+    // canvasは重ね用にしているため、親も高さを指定する
+    $canvasWrap.closest('td').attr('width', css_width);
+    $canvasWrap.closest('td').css('height', css_height);
+
+    // canvasサイズ設定(image, lightともに同サイズ)
+    $.each($canvasWrap.find('.canvas'), function(cnt, elm) {
+        $(elm).attr('width', width);
+        $(elm).attr('height', height);
+        $(elm).css('width', css_width);
+        $(elm).css('height', css_height);
+    });
+
+    // 画像描画
+    const context = $canvasImage.get(0).getContext("2d");
+    context.drawImage(imageTag, 0, 0);
+}
+
+$(function(){
+    /**
+     * ファイル選択時にbase64項目にファイルのbase64値を配置する
+     */
+    $('.select-file').on('change', function(event){
+        var input_files = event.target.files || event.dataTransfer.files;
+
+        if(!input_files.length) {
+            return;
+        }
+        var file = input_files[0];
+        var $listTop = $(event.target).closest('.image-list');
+        var $fileName = $listTop.find('.file-name');
+        $fileName.text(file.name);
+        $('.dst-table').show();
+
+		dispLoading("ファイル取得");
+        getFileBase64(file).done(function(base64){
+    		removeLoading();
+            getPdfImage(base64).done(function(image64s){
+                // リスト初期化
+                $listTop.find('.image-page').remove();
+
+                viewListImages(image64s, $listTop);
+            });
+        });
+    });
+});
+</script>
+<style>
+.canvas-wrap{
+	position: relative;
+	padding: 0;
+	box-sizing: content-box;
+}
+.canvas{
+	position: absolute;
+	left:0;
+	top:0;
+	border: 0;
+	max-width:100%;
+	box-sizing: content-box;
+	padding: 0;
+	margin: 0;
+}
+</style>
+</body>
+</html>
