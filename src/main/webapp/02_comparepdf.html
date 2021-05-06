@@ -21,7 +21,7 @@
             </table>
         </td>
         <td valign="top">
-            <table border="1" class="image-list" data-kbn="org">
+            <table border="1" class="image-top" data-kbn="org">
                 <tr>
                     <td>
                         <label style="background-color: lightgray;" for="org-pdf">
@@ -33,8 +33,8 @@
                 <tr class="image-pos"></tr>
             </table>
         </td>
-        <td valign="top" class="dst-table" style="display:none">
-            <table border="1" class="image-list" data-kbn="dst">
+        <td valign="top">
+            <table border="1" class="image-top" data-kbn="dst">
                 <tr>
                     <td>
                         <label style="background-color: lightgray;" for="dst-pdf">
@@ -57,12 +57,30 @@
     </tr>
 </table>
 <script id="image-tag" type="text/x-jsrender">
-    <tr class="image-page" data-page="{{:idx}}">
-        <td valign="top">
+    <tr class="image-tr" data-page="{{:idx}}">
+        <td valign="top" class="image-td" style="height : {{:cssHeight}}px">
             <div class="canvas-wrap" data-index="{{:idx}}">
-                <canvas class="canvas canvas-light"></canvas>
-                <canvas class="canvas canvas-image"></canvas>
+                <canvas class="canvas canvas-light"
+                  width="{{:width}}" height="{{:height}}"
+                  style="width : {{:cssWidth}}px; height : {{:cssHeight}}px;"></canvas>
+                <canvas class="canvas canvas-image"
+                  width="{{:width}}" height="{{:height}}"
+                  style="width : {{:cssWidth}}px; height : {{:cssHeight}}px;"></canvas>
             </div>
+        </td>
+    </tr>
+</script>
+<script id="page-tag" type="text/x-jsrender">
+    <tr class="page-tr" data-page="{{:idx}}">
+        <td style="height : {{:height}}px">
+            <div>{{:idx}}</div>
+        </td>
+    </tr>
+</script>
+<script id="diff-tag" type="text/x-jsrender">
+    <tr class="diff-tr" data-page="{{:idx}}">
+        <td style="height : {{:height}}px">
+            <div class="diff-result">計算中</div>
         </td>
     </tr>
 </script>
@@ -128,20 +146,14 @@ function getPdfImage(value) {
  * @param image64List
  */
 function viewListImages(image64List, $listTop) {
-    var $imagePos = $listTop.find('.image-pos');
-
     var img = new Array();
     var count = 0;
     for (var idx = 0; idx < image64List.length; idx++) {
         img[idx] = new Image();
 
-        // 空のcanvasを表示
-        var $addImage = $($('#image-tag').render({"idx" : idx}));
-        $addImage.insertBefore($imagePos);
-
         // 画像をcanvasに描画
         img[idx].onload = function(event) {
-            setCanvas(event.currentTarget, $listTop, count++);
+            drawCanvas(event.currentTarget, $listTop, count++);
         };
         img[idx].src = "data:image/jpeg;base64," + image64List[idx];
     }
@@ -150,41 +162,159 @@ function viewListImages(image64List, $listTop) {
 /** 最大幅 */
 const MAX_WIDTH = 300;
 /**
- * canvasに画像をセットする
+ * 画像用canvasに画像をセットする
  */
-function setCanvas(imageTag, $listTop, idx) {
-    var $canvasWrap = $listTop.find('.canvas-wrap[data-index=' + idx + ']');
-    var $canvasImage = $canvasWrap.find('.canvas-image');
+function drawCanvas(imageTag, $listTop, idx) {
+    $('.image-top').css('width', MAX_WIDTH);
 
-    // 画像のサイズ取得
+     // 画像のサイズ取得
 	const width = imageTag.naturalWidth;
 	const height = imageTag.naturalHeight;
 
 	// 画像は最大幅に合わせて表示する
-	var css_width = width;
-	var css_height = height;
+	var cssWidth = width;
+	var cssHeight = height;
 	var scale = 1;
 	if (width > MAX_WIDTH) {
 		scale = MAX_WIDTH / width;
-		css_width = MAX_WIDTH;
-		css_height = height * scale;
+		cssWidth = MAX_WIDTH;
+		cssHeight = Math.ceil(height * scale);
 	}
 
-    // canvasは重ね用にしているため、親も高さを指定する
-    $canvasWrap.closest('td').attr('width', css_width);
-    $canvasWrap.closest('td').css('height', css_height);
-
-    // canvasサイズ設定(image, lightともに同サイズ)
-    $.each($canvasWrap.find('.canvas'), function(cnt, elm) {
-        $(elm).attr('width', width);
-        $(elm).attr('height', height);
-        $(elm).css('width', css_width);
-        $(elm).css('height', css_height);
-    });
+    // テンプレートインサート
+    var $imagePos = $listTop.find('.image-pos');
+    var $addImage = $($('#image-tag').render({"idx" : idx, "width" : width, "height" : height, "cssWidth" : cssWidth, "cssHeight" : cssHeight}));
+    $addImage.insertBefore($imagePos);
 
     // 画像描画
+//    var $canvasWrap = $listTop.find('.canvas-wrap[data-index=' + idx + ']');
+    var $canvasImage = $addImage.find('.canvas-image');
+
     const context = $canvasImage.get(0).getContext("2d");
     context.drawImage(imageTag, 0, 0);
+}
+
+/**
+ * orgとdstの画像を表示する
+ */
+function viewDiff() {
+    $('.page-tr').remove();
+    $('.diff-tr').remove();
+
+    var $pagePos = $('.page-pos');
+    var $diffPos = $('.diff-pos');
+
+    // orgを基準に比較を行う
+    $.each($('.image-top[data-kbn="org"]').find($('.image-tr')), function(idx, elm) {
+        var $orgImageTd = $(elm).find($('.image-td'));
+
+        var $dstTop = $('.image-top[data-kbn="dst"]');
+        var $dstImageTr = $dstTop.find($('.image-tr[data-page=' + idx + ']'));
+        var $dstImageTd = $dstImageTr.find($('.image-td'));
+
+        var orgHeight = $orgImageTd.css('height');
+        orgHeight = orgHeight.substr(0, orgHeight.length - 2); //"px"を削除
+        orgHeight = Math.ceil(orgHeight)
+        var dstHeight = $dstImageTd.css('height');
+        dstHeight = dstHeight.substr(0, dstHeight.length - 2); //"px"を削除
+        dstHeight = Math.ceil(dstHeight)
+        var maxHeight = Math.max(orgHeight, dstHeight);
+
+        // ページの表示
+        var $addPage = $($('#page-tag').render({"idx" : idx, "height" : maxHeight}));
+        $addPage.insertBefore($pagePos);
+
+        // 差分枠を表示
+        var $diffPage = $($('#diff-tag').render({"idx" : idx, "height" : maxHeight}));
+        $diffPage.insertBefore($diffPos);
+
+
+        // 差分計算。遅いため、ローディングを入れる
+        dispLoading("計算中");
+        setTimeout(function(){
+            var orgCanvas = $orgImageTd.find('.canvas-image').get(0);
+            var dstCanvas = $dstImageTd.find('.canvas-image').get(0);
+
+/*
+            var diffResult = getDiff(orgCanvas, dstCanvas);
+
+            drawDiff(diffResult);
+//*/
+			removeLoading();
+        }, 1);
+    });
+}
+
+/**
+ * 差分を描画する
+ */
+function drawDiff(orgCanvas, dstCanvas) {
+
+
+}
+
+/**
+ * canvasの差分を取得する
+ */
+function getDiff(orgCanvas, dstCanvas) {
+	const width = orgCanvas.width;
+	const height = orgCanvas.height;
+
+    // サイズに違いがあれば比較せず返却
+	if (width != dstCanvas.width
+	 || height != dstCanvas.height
+	) {
+		return {
+			diff:true
+		,	size:false
+		,	diffPos:[]
+		};
+	}
+
+    // canvasの各ドットを比較
+    const orgContext = orgCanvas.getContext("2d");
+    const dstContext = dstCanvas.getContext("2d");
+
+	var orgData = orgContext.getImageData(0, 0, width, height).data;
+	var dstData = dstContext.getImageData(0, 0, width, height).data;
+
+    // 各ドットで差分を取得
+	var diffPos = [];
+	var diff = false;
+	for (var px = 0; px < width; px++) {
+		for (var py = 0; py < height; py++) {
+			const r = px * 4 + py * width * 4;
+			const g = px * 4 + py * width * 4 + 1;
+			const b = px * 4 + py * width * 4 + 2;
+			const a = px * 4 + py * width * 4 + 3;
+
+			var diff_r = orgData[r] - dstData[r];
+			var diff_g = orgData[g] - dstData[g];
+			var diff_b = orgData[b] - dstData[b];
+
+			let distance = Math.pow(diff_r, 2) + Math.pow(diff_g, 2) + Math.pow(diff_b, 2);
+			if (distance > 0) {
+				diffPos.push({x:px, y:py, distance:distance});
+				diff = true;
+			}
+		}
+	}
+
+    // 差分を返却
+	if (diff) {
+		return {
+			diff:true
+		,	size:true
+		,	diffPos:diffPos
+		};
+	}
+
+    // 同一画像を返却
+	return {
+		diff:false
+	,	size:true
+	,	diffPos:[]
+	};
 }
 
 $(function(){
@@ -198,19 +328,37 @@ $(function(){
             return;
         }
         var file = input_files[0];
-        var $listTop = $(event.target).closest('.image-list');
+        var $listTop = $(event.target).closest('.image-top');
         var $fileName = $listTop.find('.file-name');
         $fileName.text(file.name);
-        $('.dst-table').show();
+        $listTop.attr('data-loaded', true);
 
 		dispLoading("ファイル取得");
         getFileBase64(file).done(function(base64){
     		removeLoading();
             getPdfImage(base64).done(function(image64s){
                 // リスト初期化
-                $listTop.find('.image-page').remove();
+                $listTop.find('.image-tr').remove();
 
+                // 取得した画像を取得
                 viewListImages(image64s, $listTop);
+
+                // PDFを両方取得したら比較開始
+                var isLoaded = true;
+                $.each($('.image-top'), function(cnt, elm) {
+                    if (!$(elm).attr('data-loaded')) {
+                        isLoaded = false;
+                        return false; // break
+                    }
+                });
+                if (isLoaded) {
+                    // canvasタグ追加と同メソッドでのfindが効かないため別スレッド化
+                    setTimeout(function() {
+                        $('.page-table').show();
+                        $('.diff-table').show();
+                        viewDiff();
+                    }, 1);
+                }
             });
         });
     });
