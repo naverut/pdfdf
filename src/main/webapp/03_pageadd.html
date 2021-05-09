@@ -59,8 +59,8 @@
 <script id="image-tag" type="text/x-jsrender">
     <tr class="image-tr" data-page="{{:idx}}">
         <td valign="top" class="image-td" style="width: {{:cssWidth}}px; height : {{:cssHeight + 1}}px">
-            <div class="canvas-wrap" data-index="{{:idx}}">
-                <canvas class="canvas canvas-image"
+            <div class="canvas-wrap">
+                <canvas class="canvas canvas-image" data-image-no="{{:idx}}"
                   width="{{:width}}" height="{{:height}}"
                   style="width: {{:cssWidth}}px; height: {{:cssHeight}}px; z-index: 1;"></canvas>
                 <canvas class="canvas canvas-light"
@@ -215,7 +215,6 @@ function viewDiff() {
     // orgを基準に比較を行う
     var defs = [];
     var $target = $('.image-top[data-kbn="org"]').find('.image-tr');
-    console.log($target);
     var targetLen = $target.length;
     dispLoading("計算中");
     $.each($target, function(idx, elm) {
@@ -227,9 +226,10 @@ function viewDiff() {
         var $dstTop = $('.image-top[data-kbn="dst"]');
         var $dstImageTr = $dstTop.find('.image-tr[data-page=' + idx + ']');
 
-        // orgに対するdstがなければ終わり
+        // orgに対するdstがない
         if (!$dstImageTr.get(0)) {
-            return false; // break;
+            deferred.resolve();
+            return true; // continue;
         }
 
         var $dstImageTd = $dstImageTr.find('.image-td');
@@ -243,7 +243,7 @@ function viewDiff() {
         dstHeight = Math.ceil(dstHeight)
         var maxHeight = Math.max(orgHeight, dstHeight);
 
-        // 画像の高さもそろえる
+        // 画像tdの高さもそろえる
         $orgImageTd.css('height', maxHeight + 1);
         $dstImageTd.css('height', maxHeight + 1);
 
@@ -256,6 +256,7 @@ function viewDiff() {
         var $diffPage = $($('#diff-tag').render(data));
         $diffPage.insertBefore($diffPos);
 
+        // 差分文字列タグ取得
         var $diffTr = $('.diff-tr[data-page=' + idx + ']');
         var $diffText = $diffTr.find('.diff-result');
 
@@ -278,6 +279,7 @@ function viewDiff() {
             $diffText.text(getDiffText(diffResult));
 
             deferred.resolve();
+
             // loading件数を更新
             $('#loading').find('.loadingMsg').text("計算中：" + (idx + 1) + "/" + targetLen);
         }, 1);
@@ -288,12 +290,6 @@ function viewDiff() {
     $.when.apply($, defs).done(function() {
         removeLoading();
     });
-}
-
-/**
- * 差分点を計算し、描画する
- */
-function calcDiff($orgImageTd, $dstImageTd) {
 }
 
 /**
@@ -316,6 +312,7 @@ function drawDiffLight(diffCanvas, diffResult) {
         return;
 	}
 
+    // 差分点を描画
 	context.fillStyle = "rgba(255, 0, 0, 0.5)";
 	context.lineWidth = 0;
 	const diffPos = diffResult.diffPos;
@@ -325,13 +322,34 @@ function drawDiffLight(diffCanvas, diffResult) {
 }
 
 /**
+ * 差分をorgのindex単位で保持
+ */
+var diffMap = [];
+/**
  * canvasの差分を取得する
  */
 function getDiff(orgCanvas, dstCanvas) {
     // 空行との比較ではnullを返却
-    if (!orgCanvas || !dstCanvas) {
+    if (!orgCanvas) {
         return null;
     }
+
+    let result;
+
+    const orgNo = orgCanvas.getAttribute('data-image-no');
+    const orgDiffNo = orgCanvas.getAttribute('data-diff-no');
+
+    if (!dstCanvas) {
+        result = null;
+        diffMap[orgNo] = result;
+        return result;
+    }
+
+    const dstNo = dstCanvas.getAttribute('data-image-no');
+    if (orgDiffNo == dstNo) {
+        return diffMap[orgNo];
+    }
+
 	const width = orgCanvas.width;
 	const height = orgCanvas.height;
 
@@ -339,11 +357,14 @@ function getDiff(orgCanvas, dstCanvas) {
 	if (width != dstCanvas.width
 	 || height != dstCanvas.height
 	) {
-		return {
+        result = {
 			diff:true
 		,	size:false
 		,	diffPos:[]
 		};
+        diffMap[orgNo] = result;
+        orgCanvas.setAttribute('data-diff-no', dstNo);
+        return result;
 	}
 
     // canvasの各ドットを比較
@@ -356,12 +377,14 @@ function getDiff(orgCanvas, dstCanvas) {
     // 各ドットで差分を取得
 	var diffPos = [];
 	var diff = false;
+	var orgData = orgContext.getImageData(0, 0, width, height).data;
 	for (var px = 0; px < width; px++) {
 		for (var py = 0; py < height; py++) {
-			const r = px * 4 + py * width * 4;
-			const g = px * 4 + py * width * 4 + 1;
-			const b = px * 4 + py * width * 4 + 2;
-			const a = px * 4 + py * width * 4 + 3;
+		    const base = (px + py * width) * 4;
+			const r = base;
+			const g = base + 1;
+			const b = base + 2;
+			const a = base + 3;
 
 			var diff_r = orgData[r] - dstData[r];
 			var diff_g = orgData[g] - dstData[g];
@@ -377,19 +400,25 @@ function getDiff(orgCanvas, dstCanvas) {
 
     // 差分を返却
 	if (diff) {
-		return {
+        result = {
 			diff:true
 		,	size:true
 		,	diffPos:diffPos
 		};
+        diffMap[orgNo] = result;
+        orgCanvas.setAttribute('data-diff-no', dstNo);
+        return result;
 	}
 
     // 同一画像を返却
-	return {
+    result = {
 		diff:false
 	,	size:true
 	,	diffPos:[]
-	};
+    };
+    diffMap[orgNo] = result;
+    orgCanvas.setAttribute('data-diff-no', dstNo);
+    return result;
 }
 
 /**
@@ -470,7 +499,7 @@ $(function(){
             }
         });
 
-        var $blankTag = $($("#blank-tag").render({page:clickPage}));
+        var $blankTag = $($("#blank-tag").render({idx:clickPage}));
         $blankTag.insertBefore($clickTr);
 
         viewDiff();
