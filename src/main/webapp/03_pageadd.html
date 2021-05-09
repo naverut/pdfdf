@@ -49,7 +49,7 @@
         <td valign="top" class="diff-table" style="display:none">
             <table border="1">
                 <tr>
-                    <td>差分</td>
+                    <td><input type="range" value="10" min="0" max="100" step="1" id="eps-bar" style=" width: 100px;"></td>
                 </tr>
                 <tr class="diff-pos"></tr>
             </table>
@@ -260,6 +260,8 @@ function viewDiff() {
         var $diffTr = $('.diff-tr[data-page=' + idx + ']');
         var $diffText = $diffTr.find('.diff-result');
 
+        var eps = $('#eps-bar').val() / 100 * 195075; // 255^2 + 255^2 + 255^2=195075
+
         // 差分計算し描画。時間がかかるためローディングのため
         setTimeout(function() {
             // 画像の差分計算
@@ -267,16 +269,17 @@ function viewDiff() {
             var dstImageCanvas = $dstImageTd.find('.canvas-image').get(0);
 
             var diffResult = getDiff(orgImageCanvas, dstImageCanvas);
+            var epsDiffResult = getEpsDiffResult(diffResult, eps);
 
             // 差分点の描画
             var orgLightCanvas = $orgImageTd.find('.canvas-light').get(0);
             var dstLightCanvas = $dstImageTd.find('.canvas-light').get(0);
 
-            drawDiffLight(orgLightCanvas, diffResult);
-            drawDiffLight(dstLightCanvas, diffResult);
+            drawDiffLight(orgLightCanvas, epsDiffResult);
+            drawDiffLight(dstLightCanvas, epsDiffResult);
 
             // 差分テキスト表示
-            $diffText.text(getDiffText(diffResult));
+            $diffText.text(getDiffText(epsDiffResult));
 
             deferred.resolve();
 
@@ -317,7 +320,7 @@ function drawDiffLight(diffCanvas, diffResult) {
 	context.lineWidth = 0;
 	const diffPos = diffResult.diffPos;
 	for (var idx = 0; idx < diffPos.length; idx++) {
-		context.fillRect(diffPos[idx].x, diffPos[idx].y, 1, 1);
+        context.fillRect(diffPos[idx].x, diffPos[idx].y, 1, 1);
 	}
 }
 
@@ -422,6 +425,51 @@ function getDiff(orgCanvas, dstCanvas) {
 }
 
 /**
+ * eps考慮のdiffResultを取得する
+ */
+function getEpsDiffResult(diffResult, eps) {
+	// 元々が同じであればepsも同じ
+	if (!diffResult.diff) {
+		return {
+			diff : false
+		,	size : true
+		,	diffPos : []
+		}
+	}
+	// 画像サイズが異なればepsも異なる
+	if (!diffResult.size) {
+		return {
+			diff : true
+		,	size : false
+		,	diffPos : []
+		}
+	}
+
+	var diffPos = [];
+	var diff = false;
+
+	for (var idx = 0; idx < diffResult.diffPos.length; idx++) {
+		if (diffResult.diffPos[idx].distance > eps) {
+			diffPos.push(diffResult.diffPos[idx]);
+		}
+	}
+
+	if (diffPos.length > 1) {
+		return {
+			diff : true
+		,	size : true
+		,	diffPos : diffPos
+		}
+	}
+
+	return {
+		diff : false
+	,	size : true
+	,	diffPos : []
+	}
+}
+
+/**
  * diffResultから差分文字列を取得する
  */
 function getDiffText(diffResult) {
@@ -523,6 +571,12 @@ $(function(){
 
         $clickTr.remove();
 
+        viewDiff();
+    });
+    /**
+     * 差分バー変更時
+     */
+    $('#eps-bar').on('mouseup',function(event){
         viewDiff();
     });
 });
