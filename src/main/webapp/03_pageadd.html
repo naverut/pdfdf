@@ -57,10 +57,10 @@
     </tr>
 </table>
 <script id="image-tag" type="text/x-jsrender">
-    <tr class="image-tr" data-page="{{:idx}}">
+    <tr class="image-tr pages" data-page="{{:idx}}">
         <td valign="top" class="image-td" style="width: {{:cssWidth}}px; height : {{:cssHeight + 1}}px">
             <div class="canvas-wrap">
-                <canvas class="canvas canvas-image" data-image-no="{{:idx}}"
+                <canvas class="canvas canvas-image" data-image-no="{{:idx}}" data-diff-no="X"
                   width="{{:width}}" height="{{:height}}"
                   style="width: {{:cssWidth}}px; height: {{:cssHeight}}px; z-index: 1;"></canvas>
                 <canvas class="canvas canvas-light"
@@ -74,26 +74,47 @@
     </tr>
 </script>
 <script id="blank-tag" type="text/x-jsrender">
-    <tr class="image-tr" data-page="{{:idx}}">
+    <tr class="image-tr pages" data-page="{{:idx}}">
         <td colspan="2" class="image-td">
             <a href="javascript:void(0);" class="blank-remove">－</a>
         </td>
     </tr>
 </script>
 <script id="page-tag" type="text/x-jsrender">
-    <tr class="page-tr" data-page="{{:idx}}">
+    <tr class="page-tr pages" data-page="{{:idx}}">
         <td style="height : {{:height + 1}}px">
             <div>{{:idx + 1}}</div>
         </td>
     </tr>
 </script>
 <script id="diff-tag" type="text/x-jsrender">
-    <tr class="diff-tr" data-page="{{:idx}}">
+    <tr class="diff-tr pages" data-page="{{:idx}}">
         <td style="height : {{:height + 1}}px">
             <div class="diff-result">計算中</div>
         </td>
     </tr>
 </script>
+<div id="view-control">
+    <div>
+        <input type="checkbox" id="light-toggle"/>
+        <label for="light-toggle">
+            差分点を非表示
+        </label>
+    </div>
+    <div>
+        <input type="checkbox" id="image-toggle"/>
+        <label for="image-toggle">
+            画像を非表示
+        </label>
+    </div>
+    <div>
+        <input type="checkbox" id="diff-toggle"/>
+        <label for="diff-toggle">
+            差分なしを非表示
+        </label>
+    </div>
+</div>
+
 
 <script>
 /**
@@ -264,6 +285,9 @@ function viewDiff() {
 
         // 差分計算し描画。時間がかかるためローディングのため
         setTimeout(function() {
+            // loading件数を更新
+            $('#loading').find('.loadingMsg').text("計算中：" + (idx + 1) + "/" + targetLen);
+
             // 画像の差分計算
             var orgImageCanvas = $orgImageTd.find('.canvas-image').get(0);
             var dstImageCanvas = $dstImageTd.find('.canvas-image').get(0);
@@ -280,11 +304,10 @@ function viewDiff() {
 
             // 差分テキスト表示
             $diffText.text(getDiffText(epsDiffResult));
+            // 差分状態をタグ保持
+            $diffTr.attr('data-diff', epsDiffResult.diff);
 
             deferred.resolve();
-
-            // loading件数を更新
-            $('#loading').find('.loadingMsg').text("計算中：" + (idx + 1) + "/" + targetLen);
         }, 1);
 
         deferred.promise();
@@ -292,6 +315,10 @@ function viewDiff() {
 
     $.when.apply($, defs).done(function() {
         removeLoading();
+        // 各ON/OFFが変わるので再toggle
+        $('#light-toggle').change();
+        $('#image-toggle').change();
+        $('#diff-toggle').change();
     });
 }
 
@@ -485,6 +512,7 @@ function getDiffText(diffResult) {
     return "差分あり";
 }
 
+
 $(function(){
     /**
      * ファイル選択時にbase64項目にファイルのbase64値を配置する
@@ -579,6 +607,51 @@ $(function(){
     $('#eps-bar').on('mouseup',function(event){
         viewDiff();
     });
+
+    /**
+     * 差分点Toggle時
+     */
+    $('#light-toggle').on('change',function(event){
+        const checked = $('#light-toggle').prop("checked");
+        if (checked) {
+            $('.canvas-light').hide();
+        } else {
+            $('.canvas-light').show();
+        }
+    });
+
+    /**
+     * 画像Toggle時
+     */
+    $('#image-toggle').on('change',function(event){
+        const checked = $('#image-toggle').prop("checked");
+        if (checked) {
+            $('.canvas-image').hide();
+        } else {
+            $('.canvas-image').show();
+        }
+    });
+    /**
+     * 差分のないページToggle時
+     */
+    $('#diff-toggle').on('change',function(event){
+        // まずは全表示
+        $('.pages').show();
+
+        const checked = $('#diff-toggle').prop("checked");
+        console.log(checked);
+        // チェックがある場合、差分なし行をhide
+        if (checked) {
+            $.each($('.diff-tr'), function(idx, elm) {
+                if (elm.getAttribute("data-diff") == "false") {
+                    $('.pages[data-page=' + idx + ']').hide();
+//                    $.each($('.pages[data-page=' + idx + ']'), function(idx2, elm2) {
+//                        $(elm2).hide();
+//                    });
+                }
+            });
+        }
+    });
 });
 </script>
 <style>
@@ -597,6 +670,21 @@ $(function(){
 	box-sizing: content-box;
 	padding: 0;
 	margin: 0;
+}
+#view-control{
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	width :10em;
+
+	background-color: #002525;
+	color: #7777ff;
+	opacity: 0.75;
+	border-radius: 24px;
+	text-align: left;
+	font-weight: bold;
+	margin: 0px;
+	padding: 10px;
 }
 </style>
 </body>
