@@ -1,0 +1,16 @@
+.canvas-wrap{
+	position: relative;
+	padding: 0;
+	box-sizing: content-box;
+	z-index : 0;
+}
+.canvas-cell{
+	position: absolute;
+	left:0;
+	top:0;
+	border: 0;
+	max-width:100%;
+	box-sizing: content-box;
+	padding: 0;
+	margin: 0;
+}
