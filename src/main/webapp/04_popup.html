@@ -29,7 +29,7 @@
                         <label style="background-color: lightgray;" for="org-pdf">
                             元PDF選択<input id="org-pdf" class="select-file" type="file" accept=".pdf" style="display: none;"/>
                         </label>
-                        <span class="file-name"></span>
+                        <span class="file-name"></span></br>
                     </td>
                 </tr>
                 <tr class="image-pos"></tr>
@@ -120,25 +120,31 @@
 
 
 <script>
+/** BASE64を判定する文字列 */
+const BASE64_POS = "base64,"
 /**
  * fileをbase64として取得する
  */
 function getFileBase64(file) {
 	var deferred = new $.Deferred;
 
+    dispLoading("ファイル取得");
+
     var fr = new FileReader();
     // jsでbase64化するとmime情報が設定される。
     // "base64,"以降を素のbase64とする
-    var BASE64_POS = "base64,"
     fr.onload = function(evt) {
         var base64withMime = evt.target.result;
         var pos = base64withMime.indexOf(BASE64_POS);
         if (pos < 0) {
             alert("ファイル取得失敗。やり直しをお願いします");
+    		deferred.reject();
+    		removeLoading();
             return;
         }
         var base64 = base64withMime.substr(pos + BASE64_POS.length);
 		deferred.resolve(base64);
+        removeLoading();
     }
     fr.readAsDataURL(file);
 
@@ -148,11 +154,11 @@ function getFileBase64(file) {
 /**
  * PDFの画像イメージをAPI取得する
  */
-function getPdfImage(value) {
+function getPdfImage(pdf64) {
 	var deferred = new $.Deferred;
 
 	dispLoading("イメージファイル取得中");
-    params = {"pdf64" : value};
+    params = {"pdf64" : pdf64};
 
     $.ajax({
         url: './pdf/image'
@@ -176,6 +182,34 @@ function getPdfImage(value) {
 }
 
 /**
+ * イメージリストをセットアップ
+ */
+function setupImageTable($listTop, image64s) {
+    // リスト初期化
+    $listTop.find('.image-tr').remove();
+
+    // 取得した画像を取得
+    viewListImages(image64s, $listTop);
+
+    // PDFを両方取得したら比較開始
+    var isLoaded = true;
+    $.each($('.image-top'), function(cnt, elm) {
+        if (!$(elm).attr('data-loaded')) {
+            isLoaded = false;
+            return false; // break
+        }
+    });
+    if (isLoaded) {
+        // canvasタグ追加と同メソッドでのfindが効かないため別スレッド化
+        setTimeout(function() {
+            $('.page-table').show();
+            $('.diff-table').show();
+            viewDiff();
+        }, 1);
+    }
+}
+
+/**
  * 画像イメージLISTを表示する
  * @param image64List
  */
@@ -191,6 +225,18 @@ function viewListImages(image64List, $listTop) {
         };
         img[idx].src = "data:image/jpeg;base64," + image64List[idx];
     }
+}
+
+/**
+ * html上のファイルをダウンロード可能にする
+ */
+function initDownload(file, name, $tag) {
+    var link = document.createElement('a');
+    link.download = name + ".json";
+    link.href = URL.createObjectURL(new Blob([file], {type: "application/json"}));
+    link.text = name;
+
+    $tag.html(link);
 }
 
 /** 最大幅 */
@@ -612,37 +658,31 @@ $(function(){
         var file = input_files[0];
         var $listTop = $(event.target).closest('.image-top');
         var $fileName = $listTop.find('.file-name');
-        $fileName.text(file.name);
         $listTop.attr('data-loaded', true);
 
-		dispLoading("ファイル取得");
-        getFileBase64(file).done(function(base64){
-    		removeLoading();
-            getPdfImage(base64).done(function(image64s){
-                // リスト初期化
-                $listTop.find('.image-tr').remove();
+        var ext = "";
+        var extPos = file.name.lastIndexOf('.');
+        if (extPos >= 0) {
+            ext = file.name.slice(extPos + 1).toLowerCase();
+        }
 
-                // 取得した画像を取得
-                viewListImages(image64s, $listTop);
+        if (ext == "pdf") {
+            // PDFファイルをbase64化
+            getFileBase64(file).done(function(base64){
+                // PDFのbase64ファイルをAPI送信して画像リスト取得
+                getPdfImage(base64).done(function(image64s){
+                    // 画像リストをtableに配置
+                    setupImageTable($listTop, image64s);
 
-                // PDFを両方取得したら比較開始
-                var isLoaded = true;
-                $.each($('.image-top'), function(cnt, elm) {
-                    if (!$(elm).attr('data-loaded')) {
-                        isLoaded = false;
-                        return false; // break
-                    }
+                    // 取得した画像リストをダウンロードできるようにする
+                    initDownload(JSON.stringify(image64s), file.name, $fileName);
                 });
-                if (isLoaded) {
-                    // canvasタグ追加と同メソッドでのfindが効かないため別スレッド化
-                    setTimeout(function() {
-                        $('.page-table').show();
-                        $('.diff-table').show();
-                        viewDiff();
-                    }, 1);
-                }
             });
-        });
+        } else {
+            alert("拡張子がおかしい");
+            console.log(file.name);
+            console.log(ext);
+        }
     });
     /**
      * 行追加押下時
