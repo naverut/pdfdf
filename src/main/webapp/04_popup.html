@@ -27,7 +27,7 @@
                 <tr>
                     <td colspan="2">
                         <label style="background-color: lightgray;" for="org-pdf">
-                            元PDF選択<input id="org-pdf" class="select-file" type="file" accept=".pdf" style="display: none;"/>
+                            元PDF選択<input id="org-pdf" class="select-file" type="file" accept=".pdf,.json" style="display: none;"/>
                         </label>
                         <span class="file-name"></span></br>
                     </td>
@@ -40,7 +40,7 @@
                 <tr>
                     <td colspan="2">
                         <label style="background-color: lightgray;" for="dst-pdf">
-                            先PDF選択<input id="dst-pdf" class="select-file" type="file" accept=".pdf" style="display: none;"/>
+                            先PDF選択<input id="dst-pdf" class="select-file" type="file" accept=".pdf,.json" style="display: none;"/>
                         </label>
                         <span class="file-name"></span>
                     </td>
@@ -147,6 +147,25 @@ function getFileBase64(file) {
         removeLoading();
     }
     fr.readAsDataURL(file);
+
+	return deferred.promise();
+}
+
+/**
+ * fileを素のtextとして取得する
+ */
+function getFileText(file) {
+	var deferred = new $.Deferred;
+
+    dispLoading("ファイル取得");
+
+    var fr = new FileReader();
+    fr.onload = function(evt) {
+        var text = evt.target.result;
+		deferred.resolve(text);
+        removeLoading();
+    }
+    fr.readAsText(file);
 
 	return deferred.promise();
 }
@@ -677,6 +696,15 @@ $(function(){
                     // 取得した画像リストをダウンロードできるようにする
                     initDownload(JSON.stringify(image64s), file.name, $fileName);
                 });
+            });
+        } else if (ext == "json") {
+            // 画像リストをtableに配置
+            getFileText(file).done(function(str){
+                // 画像リストをtableに配置
+                setupImageTable($listTop, JSON.parse(str));
+
+                // ファイル名表示
+                $fileName.text(file.name);
             });
         } else {
             alert("拡張子がおかしい");
