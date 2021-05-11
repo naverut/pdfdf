@@ -51,7 +51,10 @@
         <td valign="top" class="diff-table" style="display:none">
             <table border="1">
                 <tr>
-                    <td><input type="range" value="10" min="0" max="100" step="1" id="eps-bar" style=" width: 100px;"></td>
+                    <td>
+                        <input type="range" value="10" min="0" max="100" step="1" id="eps-bar" style=" width: 100px;">
+                        <input type="button" id="diff-btn" value="比較" style="display:none">
+                    </td>
                 </tr>
                 <tr class="diff-pos"></tr>
             </table>
@@ -114,6 +117,12 @@
         <input type="checkbox" id="diff-toggle"/>
         <label for="diff-toggle">
             差分なしを非表示
+        </label>
+    </div>
+    <div>
+        <input type="checkbox" id="auto-toggle"/>
+        <label for="auto-toggle">
+            自動で比較しない
         </label>
     </div>
 </div>
@@ -206,6 +215,9 @@ function getPdfImage(pdf64) {
 function setupImageTable($listTop, image64s) {
     // リスト初期化
     $listTop.find('.image-tr').remove();
+    // 比較結果をクリア（orgの比較対象Noをクリア）
+    $('.canvas-image').attr('data-diff-no', 'X');
+
 
     // 取得した画像を取得
     viewListImages(image64s, $listTop);
@@ -292,9 +304,19 @@ function drawCanvas(imageTag, $listTop, idx) {
 }
 
 /**
- * orgとdstの画像比較結果を表示する
+ * 自動か判別しorgとdstの画像比較結果を表示する
  */
 function viewDiff() {
+    const checked = $('#auto-toggle').prop("checked");
+    if (checked) {
+        return;
+    }
+    doDiff();
+}
+/**
+ * orgとdstの画像比較結果を表示する
+ */
+function doDiff() {
     $('.page-tr').remove();
     $('.diff-tr').remove();
 
@@ -763,6 +785,13 @@ $(function(){
     });
 
     /**
+     * 差分実行ボタン
+     */
+    $('#diff-btn').on('click',function(event){
+        doDiff();
+    });
+
+    /**
      * 差分点Toggle時
      */
     $('#light-toggle').on('change',function(event){
@@ -801,6 +830,17 @@ $(function(){
                     $('.pages[data-page=' + idx + ']').hide();
                 }
             });
+        }
+    });
+    /**
+     * 自動比較Toggle時
+     */
+    $('#auto-toggle').on('change',function(event){
+        const checked = $('#auto-toggle').prop("checked");
+        if (checked) {
+            $('#diff-btn').show();
+        } else {
+            $('#diff-btn').hide();
         }
     });
 
