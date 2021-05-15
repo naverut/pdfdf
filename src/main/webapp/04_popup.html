@@ -71,7 +71,10 @@
                 <canvas class="canvas-cell canvas-light"
                   width="{{:width}}" height="{{:height}}"
                   style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 2;"></canvas>
-                <img src="./img/invisible.png" class="canvas-cell cell-top" style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 3;"></img>
+                <canvas class="canvas-cell canvas-rect"
+                  width="{{:width}}" height="{{:height}}"
+                  style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 3;"></canvas>
+                <img src="./img/invisible.png" class="canvas-cell cell-top" style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 4;"></img>
             </div>
         </td>
         <td>
@@ -95,8 +98,9 @@
 </script>
 <script id="diff-tag" type="text/x-jsrender">
     <tr class="diff-tr pages" data-page="{{:idx}}">
-        <td style="height : {{:height + 1}}px">
+        <td style="height : {{:height + 1}}px; display : flex; flex-direction: column;">
             <div class="diff-result">計算中</div>
+            <div class="diff-label-pos"></div>
         </td>
     </tr>
 </script>
@@ -126,8 +130,157 @@
         </label>
     </div>
 </div>
+<div id="rect-box">
+    <table border="0">
+        <tr>
+            <td id="rect-tab" class="rect-elm">
+                <a href="javascript:void(0);" class="rect-tab-mark rect-link">
+                    <div class="rect-tab-toggle rect-tab-opened" style="display:none">&gt;</div>
+                    <div class="rect-tab-toggle rect-tab-closed">&lt;</div>
+                </a>
+            </td>
+            <td id="rect-table" class="rect-elm" style="display:none">
+                <table border="1">
+                    <tr>
+                        <td colspan="7">
+                            <input type="button" id="import" value="読込" />
+                            <input type="button" id="export" value="保存" />
+                            <textarea id="rect-data"></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>利用</td>
+                        <td>名前</td>
+                        <td>x</td>
+                        <td>y</td>
+                        <td>width</td>
+                        <td>height</td>
+                        <td>削除</td>
+                    </tr>
+                    <tr class="rect-pos"></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+<script id="rect-tag" type="text/x-jsrender">
+    <tr data-rect-id="{{:rect.id}}" class="rect-row">
+        <td><input type="checkbox" class="rect-check" {{if rect.checked}}checked="checked"{{/if}}/></td>
+        <td><input type="text" class="rect-label" value="No{{:rect.label}}"></td>
+        <td><input type="text" class="rect-text rect-x" value="{{:rect.x}}" /></td>
+        <td><input type="text" class="rect-text rect-y" value="{{:rect.y}}" /></td>
+        <td><input type="text" class="rect-text rect-w" value="{{:rect.width}}" /></td>
+        <td><input type="text" class="rect-text rect-h" value="{{:rect.height}}" /></td>
+        <td><a href="javascript:void(0);" class="rect-link rect-trash">－</a></td>
+    </tr>
+</script>
+<script id="diff-label-tag" type="text/x-jsrender">
+    <div>
+        <input type="checkbox" id="page-{{:page}}-rect-id-{{:rect.id}}" class="diff-check" {{if rect.checked}}checked="checked"{{/if}}/>
+        <label for="page-{{:page}}-rect-id-{{:rect.id}}">
+            <span class="rect-label-{{:rect.id}}">{{:rect.label}}</span>
+        </label>
+    </div>
+</script>
 
+<script>
+/**
+ * rectリストを取得
+ */
+function getRectList() {
+    var rectList = [];
+    $.each($('.rect-row'), function(idx, elm) {
+        var $row = $(elm);
 
+        rectList.push({
+            id :　$row.attr("data-rect-id")
+        ,   checked : $row.find('.rect-check').prop("checked")
+        ,   label : $row.find('.rect-label').val()
+        ,   x : Number($row.find('.rect-x').val())
+        ,   y : Number($row.find('.rect-y').val())
+        ,   width : Number($row.find('.rect-w').val())
+        ,   height : Number($row.find('.rect-h').val())
+        });
+    });
+    return rectList;
+}
+
+/**
+ * 領域描画
+ */
+function drawRectList(canvas, rectList) {
+    // 空行は何もしない
+    if (!canvas) {
+        return;
+    }
+    const context = canvas.getContext("2d");
+    for (var cnt = 0; cnt < rectList.length; cnt++) {
+        var rect = rectList[cnt];
+        if (rect.checked) {
+            context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+        }
+    }
+}
+
+$(function(){
+    /**
+     * 領域のリストの最小化／最大化
+     */
+    $('.rect-tab-mark').click(function(evt){
+        $('.rect-tab-toggle').fadeToggle();
+        $('#rect-table').fadeToggle();
+    });
+
+    /**
+     * 領域内変更通知
+     */
+/*
+    $('#rect-box').change(function(evt){
+// ここに書いてしまうと子要素のeventが全てここに来る
+    });
+//*/
+
+    /**
+     * 領域行削除
+     */
+    $('body').on('click', '.rect-trash', function(event) {
+        var $rectRowTop = $(event.target).closest('.rect-row');
+        $rectRowTop.remove();
+//        $('#rect-box').change();
+        viewDiff();
+    });
+
+    /**
+     * 領域数値変更
+     */
+    $('body').on('change', '.rect-text', function(event) {
+        viewDiff();
+    });
+
+    /**
+     * 領域名変更
+     */
+    $('body').on('change', '.rect-label', function(event) {
+        var $rectRowTop = $(event.target).closest('.rect-row');
+        var label = $(event.target).val();
+        var rectId = $rectRowTop.attr('data-rect-id');
+        $('.rect-label-' + rectId + '').text(label);
+
+        event.stopPropagation(); // 親に伝搬させない
+    });
+});
+</script>
+<style>
+.rect-link{
+    font-weight:bold;
+}
+.rect-link:link{
+	color : #7777ff;
+}
+.rect-link:visited{
+	color : #7777ff;
+}
+</style>
 <script>
 /** BASE64を判定する文字列 */
 const BASE64_POS = "base64,"
@@ -210,14 +363,13 @@ function getPdfImage(pdf64) {
 }
 
 /**
- * イメージリストをセットアップ
+ * 画像比較テーブルをセットアップ
  */
 function setupImageTable($listTop, image64s) {
     // リスト初期化
     $listTop.find('.image-tr').remove();
     // 比較結果をクリア（orgの比較対象Noをクリア）
     $('.canvas-image').attr('data-diff-no', 'X');
-
 
     // 取得した画像を取得
     viewListImages(image64s, $listTop);
@@ -307,6 +459,7 @@ function drawCanvas(imageTag, $listTop, idx) {
  * 自動か判別しorgとdstの画像比較結果を表示する
  */
 function viewDiff() {
+    // 自動比較なしチェックがある場合は無視する
     const checked = $('#auto-toggle').prop("checked");
     if (checked) {
         return;
@@ -327,6 +480,11 @@ function doDiff() {
     var defs = [];
     var $target = $('.image-top[data-kbn="org"]').find('.image-tr');
     var targetLen = $target.length;
+
+    var eps = $('#eps-bar').val() / 100 * 195075; // 255^2 + 255^2 + 255^2=195075
+    // 領域リスト
+    var rectList = getRectList();
+
     dispLoading("計算中");
     $.each($target, function(idx, elm) {
         var deferred = new $.Deferred;
@@ -369,37 +527,17 @@ function doDiff() {
 
         // 差分文字列タグ取得
         var $diffTr = $('.diff-tr[data-page=' + idx + ']');
-        var $diffText = $diffTr.find('.diff-result');
 
-        var eps = $('#eps-bar').val() / 100 * 195075; // 255^2 + 255^2 + 255^2=195075
+
+        // rectを描画
+        viewDiffRect($diffTr, rectList);
 
         // 差分計算し描画。時間がかかるためローディング
         setTimeout(function() {
             // loading件数を更新
             $('#loading').find('.loadingMsg').text("計算中：" + (idx + 1) + "/" + targetLen);
 
-            // 画像の差分計算
-            var orgImageCanvas = $orgImageTd.find('.canvas-image').get(0);
-            var dstImageCanvas = $dstImageTd.find('.canvas-image').get(0);
-
-            var diffResult = getDiff(orgImageCanvas, dstImageCanvas);
-            var epsDiffResult = getEpsDiffResult(diffResult, eps);
-
-            // 差分点の描画
-            var orgLightCanvas = $orgImageTd.find('.canvas-light').get(0);
-            var dstLightCanvas = $dstImageTd.find('.canvas-light').get(0);
-
-            drawDiffLight(orgLightCanvas, epsDiffResult);
-            drawDiffLight(dstLightCanvas, epsDiffResult);
-
-            // 差分テキスト表示
-            $diffText.text(getDiffText(epsDiffResult));
-            // 差分状態をタグ保持
-            var isDiff = false;
-            if (!epsDiffResult || epsDiffResult.diff) {
-                isDiff = true;
-            }
-            $diffTr.attr('data-diff', isDiff);
+            calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, rectList);
 
             deferred.resolve();
         }, 1);
@@ -407,6 +545,7 @@ function doDiff() {
         deferred.promise();
     });
 
+    // 全差分完了後に再描画処理
     $.when.apply($, defs).done(function() {
         removeLoading();
         // 各ON/OFFが変わるので再toggle
@@ -417,6 +556,44 @@ function doDiff() {
         // 差分が変わるのでポップアップも再描画
         popWinReload();
     });
+}
+
+/**
+ * 差分を計算し描画する
+ */
+function calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, rectList) {
+    // 画像の差分計算
+    var orgImageCanvas = $orgImageTd.find('.canvas-image').get(0);
+    var dstImageCanvas = $dstImageTd.find('.canvas-image').get(0);
+
+    var diffResult = getDiff(orgImageCanvas, dstImageCanvas);
+    var epsDiffResult = getEpsDiffResult(diffResult, eps);
+
+    // 差分点の描画
+    var orgLightCanvas = $orgImageTd.find('.canvas-light').get(0);
+    var dstLightCanvas = $dstImageTd.find('.canvas-light').get(0);
+
+    drawDiffLight(orgLightCanvas, epsDiffResult);
+    drawDiffLight(dstLightCanvas, epsDiffResult);
+
+    // 領域考慮
+    var rectDiffResult = getRectDiffResult(epsDiffResult, rectList);
+
+    // 領域描画
+    var orgRectCanvas = $orgImageTd.find('.canvas-light').get(0);
+    var dstRectCanvas = $dstImageTd.find('.canvas-light').get(0);
+    drawRectList(orgRectCanvas, rectList);
+    drawRectList(dstRectCanvas, rectList);
+
+    // 差分テキスト表示
+    var $diffText = $diffTr.find('.diff-result');
+    $diffText.text(getDiffText(rectDiffResult));
+    // 差分状態をタグ保持
+    var isDiff = false;
+    if (!rectDiffResult || rectDiffResult.diff) {
+        isDiff = true;
+    }
+    $diffTr.attr('data-diff', isDiff);
 }
 
 /**
@@ -599,6 +776,66 @@ function getEpsDiffResult(diffResult, eps) {
 }
 
 /**
+ * rectList考慮のdiffResultを取得する
+ */
+function getRectDiffResult(diffResult, rectList) {
+    // 元がnull
+    if (!diffResult) {
+        return null;
+    }
+
+	// 元々が同じであればrectDiffも同じ
+	if (!diffResult.diff) {
+		return {
+			diff : false
+		,	size : true
+		,	diffPos : []
+		}
+	}
+	// 画像サイズが異なればrectDiffも異なる
+	if (!diffResult.size) {
+		return {
+			diff : true
+		,	size : false
+		,	diffPos : []
+		}
+	}
+
+	var diffPos = [];
+	var diff = false;
+
+	for (var idx = 0; idx < diffResult.diffPos.length; idx++) {
+        var isDiff = true;
+        for (var rdx = 0; rdx < rectList.length; rdx++) {
+            if ( (rectList[rdx].x <= diffResult.diffPos[idx].x && diffResult.diffPos[idx].x <= rectList[rdx].x + rectList[rdx].width)
+               &&(rectList[rdx].y <= diffResult.diffPos[idx].y && diffResult.diffPos[idx].y <= rectList[rdx].y + rectList[rdx].height)
+            ) {
+                isDiff = false;
+                break;
+            }
+        }
+        if (isDiff) {
+            diffPos.push(diffResult.diffPos[idx]);
+        }
+	}
+
+	if (diffPos.length > 1) {
+		return {
+			diff : true
+		,	size : true
+		,	diffPos : diffPos
+		}
+	}
+
+	return {
+		diff : false
+	,	size : true
+	,	diffPos : []
+	}
+}
+
+
+/**
  * diffResultから差分文字列を取得する
  */
 function getDiffText(diffResult) {
@@ -633,24 +870,40 @@ function getCanvas(kbn, imageNo, isImage) {
  * 領域追加
  */
 function addRect(rect) {
-    console.log(rect);
-/*
-	if (rect.width == 0 || rect.height == 0) {
-		return false;
-	}
-	var cnt = Number($("#rect-box").attr("data-cnt")) + 1;
+    // リストを追加
+    var $rectTop = $("#rect-box");
+	var id = (new Date()).getTime();
+	var label = id;
 
-	var $add_rect = $($("#rect-tags").render({idx:cnt, rect:rect}));
+    // rectに情報追加
+	rect.checked = true;
+	rect.id = id;
+	rect.label = label;
 
-	var $rect_list = $(".rect_list");
-	$add_rect.insertBefore($rect_list);
+    // 行追加描画
+	var $addTag = $($("#rect-tag").render({rect:rect}));
+	var $rectPos = $rectTop.find('.rect-pos');
+	$addTag.insertBefore($rectPos);
 
-	$("#rect-box").attr("data-cnt", cnt);
-	drawPopRect();
-
-	return true;
-//*/
+    // 差分が変わるため再計算（描画後のためsetTimeout）
+    setTimeout(function() {
+        viewDiff();
+    }, 1);
 }
+
+/**
+ * 差分に領域名を表示
+ */
+function viewDiffRect($diffTr, rectList){
+    var $labelPos = $diffTr.find('.diff-label-pos');
+    var page = $diffTr.attr('data-page');
+
+    for (var idx = 0; idx < rectList.length; idx++) {
+        var $labelTag = $($("#diff-label-tag").render({page:page, rect:rectList[idx]}));
+        $labelTag.insertBefore($labelPos);
+    }
+}
+
 
 /**
  * ポップアップウィンドウの再描画
@@ -857,5 +1110,29 @@ $(function(){
     });
 });
 </script>
+
+<style>
+#rect-box{
+    position: fixed;
+    top: 20px;
+    right: 20px;
+
+    color : #7777ff;
+    background-color: #002525;
+    opacity: 0.75;
+    border-radius: 24px;
+    text-align: center;
+    font-weight: bold;
+    margin: 0px;
+    padding: 10px;
+}
+
+#rect-elm {
+    text-align: center;
+}
+.rect-text {
+    width: 30px;
+}
+</style>
 </body>
 </html>
