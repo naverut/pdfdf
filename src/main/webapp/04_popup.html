@@ -74,7 +74,7 @@
                 <canvas class="canvas-cell canvas-rect"
                   width="{{:width}}" height="{{:height}}"
                   style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 3;"></canvas>
-                <img src="./img/invisible.png" class="canvas-cell cell-top" style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 4;"></img>
+                <img src="./img/invisible.png" class="canvas-cell cell-top" style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 4; display:none;"></img>
             </div>
         </td>
         <td>
@@ -130,13 +130,13 @@
         </label>
     </div>
 </div>
-<div id="rect-box">
+<div id="rect-box" style="display:none">
     <table border="0">
         <tr>
             <td id="rect-tab" class="rect-elm">
                 <a href="javascript:void(0);" class="rect-tab-mark rect-link">
-                    <div class="rect-tab-toggle rect-tab-opened" style="display:none">&gt;</div>
-                    <div class="rect-tab-toggle rect-tab-closed">&lt;</div>
+                    <div class="rect-tab-toggle rect-tab-opened" style="display:none">＞</div>
+                    <div class="rect-tab-toggle rect-tab-closed">＜</div>
                 </a>
             </td>
             <td id="rect-table" class="rect-elm" style="display:none">
@@ -149,7 +149,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <td>利用</td>
+                        <td>全体</td>
                         <td>名前</td>
                         <td>x</td>
                         <td>y</td>
@@ -173,14 +173,43 @@
         <td><input type="text" class="rect-text rect-h" value="{{:rect.height}}" /></td>
         <td><a href="javascript:void(0);" class="rect-link rect-trash">－</a></td>
     </tr>
+    <tr data-rect-id="{{:rect.id}}" class="rect-detail-top" style="font-size:80%" align="center">
+        <td colspan="7">
+            <table width="100%">
+                <tr>
+                    <td>
+                        <a href="javascript:void(0);" class="rect-detail-mark rect-link">
+                            <div class="rect-detail-toggle rect-detail-opened" style="display:none">∧除外リスト∧</div>
+                            <div class="rect-detail-toggle rect-detail-closed">∨除外リスト∨</div>
+                        </a>
+                    </td>
+                    <td class="rect-detail-table" style="display:none">
+                        <table border="1" width="100%">
+                            <tr>
+                                <td>Page<a href="javascript:void(0);" class="rect-detail-add rect-link">＋</a></td>
+                                <td>削除</td>
+                            </tr>
+                            <tr class="rect-detail-pos"></tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
 </script>
 <script id="diff-label-tag" type="text/x-jsrender">
-    <div>
-        <input type="checkbox" id="page-{{:page}}-rect-id-{{:rect.id}}" class="diff-check" {{if rect.checked}}checked="checked"{{/if}}/>
+    <div class="diff-label-wrap" data-rect-id="{{:rect.id}}">
+        <input type="checkbox" id="page-{{:page}}-rect-id-{{:rect.id}}" class="diff-check" {{if rect.checked}}checked="checked"{{/if}} />
         <label for="page-{{:page}}-rect-id-{{:rect.id}}">
             <span class="rect-label-{{:rect.id}}">{{:rect.label}}</span>
         </label>
     </div>
+</script>
+<script id="rect-detail-tag" type="text/x-jsrender">
+    <tr class="rect-detail-tr">
+        <td><input type="text" value="{{:page}}" style="width="5em" class="rect-detail-page" /></td>
+        <td><a href="javascript:void(0);" class="rect-detail-remove rect-link">－</a></td>
+    </tr>
 </script>
 
 <script>
@@ -191,15 +220,22 @@ function getRectList() {
     var rectList = [];
     $.each($('.rect-row'), function(idx, elm) {
         var $row = $(elm);
+        var id = $row.attr("data-rect-id");
+        var $dtlTop = $('.rect-detail-top[data-rect-id=' + id + ']');
+        var detailList = [];
+        $.each($dtlTop, function(dtlCnt, dtlElm) {
+            detailList.push($(dtlElm).val());
+        });
 
         rectList.push({
-            id :　$row.attr("data-rect-id")
+            id :　id
         ,   checked : $row.find('.rect-check').prop("checked")
         ,   label : $row.find('.rect-label').val()
         ,   x : Number($row.find('.rect-x').val())
         ,   y : Number($row.find('.rect-y').val())
         ,   width : Number($row.find('.rect-w').val())
         ,   height : Number($row.find('.rect-h').val())
+        ,   details : detailList
         });
     });
     return rectList;
@@ -222,11 +258,60 @@ function drawRectList(canvas, rectList) {
     }
 }
 
+/**
+ * 領域除外リスト追加
+ */
+function addRectDetail($detailTop, selPage) {
+    var $pos = $detailTop.find('.rect-detail-pos');
+    var $addTag = $($('#rect-detail-tag').render({page:selPage}));
+    $addTag.insertBefore($pos);
+}
+/**
+ * 領域除外リスト削除
+ */
+function removeRectDetail($detailTop, selPage) {
+    var $rectDetailPages = $detailTop.find('.rect-detail-page');
+    $.each($rectDetailPages, function(cnt, elm) {
+        if ($(elm).val() == selPage) {
+            $(elm).closest('.rect-detail-tr').remove();
+        }
+    });
+}
+
+/**
+ * 領域内のチェック変更
+ * @param $rectCheck rectのチェックボックスelement
+ */
+function changeRectCheck($rectCheck) {
+    // rect側情報
+    var rectId = $rectCheck.closest('.rect-row').attr("data-rect-id");
+    var rectAllChecked = $rectCheck.prop("checked");
+    var $excPages = $('.rect-detail-top[data-rect-id=' + rectId + ']').find('.rect-detail-page');
+
+    // 各diffのページ毎にrect情報を反映する
+    $.each($('.diff-tr'), function(cnt, elm) {
+        var page = Number($(elm).attr("data-page")) + 1;
+        var $diffCheckbox = $(elm).find('.diff-label-wrap[data-rect-id=' + rectId + '] .diff-check');
+
+        // 基本的にはrectのallCheckに従う
+        var pageChecked = rectAllChecked;
+        // 除外リストにあったら反転
+        $.each($excPages, function(cntDtl, elmDtl) {
+            if ($(elmDtl).val() == page) {
+                pageChecked = !pageChecked;
+                return false; // break;
+            }
+        });
+
+        $diffCheckbox.prop("checked", pageChecked);
+    });
+}
+
 $(function(){
     /**
      * 領域のリストの最小化／最大化
      */
-    $('.rect-tab-mark').click(function(evt){
+    $('.rect-tab-mark').click(function(){
         $('.rect-tab-toggle').fadeToggle();
         $('#rect-table').fadeToggle();
     });
@@ -234,9 +319,10 @@ $(function(){
     /**
      * 領域内変更通知
      */
-/*
+//*
     $('#rect-box').change(function(evt){
 // ここに書いてしまうと子要素のeventが全てここに来る
+        console.log('#rect-box');
     });
 //*/
 
@@ -244,9 +330,18 @@ $(function(){
      * 領域行削除
      */
     $('body').on('click', '.rect-trash', function(event) {
+        // 指定行取得
         var $rectRowTop = $(event.target).closest('.rect-row');
+        var rectId = $rectRowTop.attr("data-rect-id");
+
+        // 除外行取得
+        var $rectDetailTop = $('.rect-detail-top[data-rect-id=' + rectId + ']');
+
+        // 指定行を削除し、diff等に反映
         $rectRowTop.remove();
-//        $('#rect-box').change();
+        $rectDetailTop.remove();
+
+        // 全ページに影響するので再Diff
         viewDiff();
     });
 
@@ -254,6 +349,7 @@ $(function(){
      * 領域数値変更
      */
     $('body').on('change', '.rect-text', function(event) {
+        // 全ページに影響するので再Diff
         viewDiff();
     });
 
@@ -265,8 +361,104 @@ $(function(){
         var label = $(event.target).val();
         var rectId = $rectRowTop.attr('data-rect-id');
         $('.rect-label-' + rectId + '').text(label);
+    });
 
-        event.stopPropagation(); // 親に伝搬させない
+    /**
+     * rect列の領域詳細チェックボックス
+     */
+    $('body').on('change', '.rect-check', function(event) {
+        changeRectCheck($(event.target));
+
+        // 全ページに影響するので再Diff
+        viewDiff();
+    });
+
+    /**
+     * rect列の除外リストのページ変更
+     */
+    $('body').on('change', '.rect-detail-page', function(event) {
+        var rectId = $(event.target).closest('.rect-detail-top').attr("data-rect-id");
+        var $rectCheck = $('.rect-row[data-rect-id=' + rectId + '] .rect-check');
+        changeRectCheck($rectCheck);
+
+        // 元ページと先ページで入れ替わるため全ページに影響するので再Diff
+        viewDiff();
+    });
+
+    /**
+     * 領域詳細Toggle
+     */
+    $('body').on('click', '.rect-detail-mark', function(event) {
+        var $detailTop = $(event.target).closest('.rect-detail-top');
+        $detailTop.find('.rect-detail-toggle').toggle();
+        $detailTop.find('.rect-detail-table').fadeToggle();
+    });
+
+    /**
+     * 領域詳細除外行追加
+     */
+    $('body').on('click', '.rect-detail-add', function(event) {
+        var $detailTop = $(event.target).closest('.rect-detail-top');
+
+        addRectDetail($detailTop, "");
+
+        // 空で追加のため、diff変更なし
+    });
+    /**
+     * 領域詳細除外行削除
+     */
+    $('body').on('click', '.rect-detail-remove', function(event) {
+        // top取得
+        var $detailTop = $(event.target).closest('.rect-detail-top');
+
+        // 削除ページ取得（テキスト入力で重複チェックしないため複数考慮）
+        var $detailTr = $(event.target).closest('.rect-detail-tr');
+        var page = $detailTr.find('.rect-detail-page').val();
+
+        // 削除実行
+        removeRectDetail($detailTop, page);
+
+        // 変更をdiffに通知
+        var rectId = $detailTop.attr("data-rect-id");
+        var $rectCheck = $('.rect-row[data-rect-id=' + rectId + '] .rect-check');
+        changeRectCheck($rectCheck);
+
+        // 全ページに影響するので再Diff
+        viewDiff();
+    });
+
+    /**
+     * diff列の領域詳細チェックボックス
+     */
+    $('body').on('change', '.diff-check', function(event) {
+        // diff側情報
+        var rectId = $(event.target).closest('.diff-label-wrap').attr("data-rect-id");
+        var page = Number($(event.target).closest('.diff-tr').attr("data-page")) + 1;
+        var checked = $(event.target).prop("checked");
+
+        // rect側情報
+        var $rectTr = $('.rect-row[data-rect-id=' + rectId + ']');
+        var allCheck = $rectTr.find('.rect-check').prop("checked");
+
+        var $detailTop = $('.rect-detail-top[data-rect-id=' + rectId + ']');
+
+        // diff側チェックと全体チェック状況によって除外リストを作成
+        if (checked == allCheck) {
+            // チェックがそろった場合は除外リストには不要なため削除
+            removeRectDetail($detailTop, page);
+        } else {
+            // チェックが異なる場合は除外リストに追加
+            addRectDetail($detailTop, page);
+        }
+
+/*
+        // insert等の後のため、setTimeout
+        setTimeout(function() {
+
+            // 全ページに影響するので再Diff
+            viewDiff();
+        }, 1);
+//*/
     });
 });
 </script>
@@ -374,6 +566,11 @@ function setupImageTable($listTop, image64s) {
     // 取得した画像を取得
     viewListImages(image64s, $listTop);
 
+    // 開いているpopupがあれば閉じる
+    if(popWin && !popWin.closed) {
+        popWin.close();
+    }
+
     // PDFを両方取得したら比較開始
     var isLoaded = true;
     $.each($('.image-top'), function(cnt, elm) {
@@ -387,6 +584,8 @@ function setupImageTable($listTop, image64s) {
         setTimeout(function() {
             $('.page-table').show();
             $('.diff-table').show();
+            $('#rect-box').show();
+            $('.cell-top').show();
             viewDiff();
         }, 1);
     }
@@ -904,7 +1103,6 @@ function viewDiffRect($diffTr, rectList){
     }
 }
 
-
 /**
  * ポップアップウィンドウの再描画
  */
@@ -940,6 +1138,13 @@ function popWinToggle(isImage, checked) {
 var popWin = null;
 
 $(function(){
+    window.onunload = function() {
+        // 開いているpopupがあれば閉じる
+        if(popWin && !popWin.closed) {
+            popWin.close();
+        }
+    }
+
     /**
      * ファイル選択時にbase64項目にファイルのbase64値を配置する
      */
