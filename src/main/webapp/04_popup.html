@@ -207,7 +207,7 @@
 </script>
 <script id="rect-detail-tag" type="text/x-jsrender">
     <tr class="rect-detail-tr">
-        <td><input type="text" value="{{:page}}" style="width="5em" class="rect-detail-page" /></td>
+        <td><input type="text" value="{{:page}}" style="width:5em" class="rect-detail-page" /></td>
         <td><a href="javascript:void(0);" class="rect-detail-remove rect-link">－</a></td>
     </tr>
 </script>
@@ -221,14 +221,16 @@ function getRectList() {
     $.each($('.rect-row'), function(idx, elm) {
         var $row = $(elm);
         var id = $row.attr("data-rect-id");
-        var $dtlTop = $('.rect-detail-top[data-rect-id=' + id + ']');
+        var $dtlTop = $('.rect-detail-top[data-rect-id=' + id + '] .rect-detail-page');
+
+        // 入力は1～で入っているので0に合わせて保存
         var detailList = [];
         $.each($dtlTop, function(dtlCnt, dtlElm) {
-            detailList.push($(dtlElm).val());
+            detailList.push(Number($(dtlElm).val()) - 1);
         });
 
         rectList.push({
-            id :　id
+            id : id
         ,   checked : $row.find('.rect-check').prop("checked")
         ,   label : $row.find('.rect-label').val()
         ,   x : Number($row.find('.rect-x').val())
@@ -305,6 +307,50 @@ function changeRectCheck($rectCheck) {
 
         $diffCheckbox.prop("checked", pageChecked);
     });
+}
+/**
+ * 指定ページの差分のみ再計算
+ */
+function reCalcViewDiff($diffTr) {
+    var page = Number($diffTr.attr("data-page"));
+
+    // PDF画像列の取得
+    var $orgTop = $('.image-top[data-kbn="org"]');
+    var $dstTop = $('.image-top[data-kbn="dst"]');
+
+    var $orgImageTr = $orgTop.find('.image-tr[data-page=' + page + ']');
+    var $dstImageTr = $dstTop.find('.image-tr[data-page=' + page + ']');
+
+    // 空行の場合は更新なし
+    if (!$orgImageTr.get(0) || !$dstImageTr.get(0)) {
+        return;
+    }
+
+    var $orgImageTd = $orgImageTr.find('.image-td');
+    var $dstImageTd = $dstImageTr.find('.image-td');
+
+    // チェック有のリスト作成
+    var rectList = [];
+    $.each($diffTr.find('.diff-label-wrap'), function(cnt, elm) {
+        // rect側のx,y,width,heightを取得
+        var rectId = $(elm).attr("data-rect-id");
+        var $row = $('.rect-row[data-rect-id=' + rectId + ']');
+
+        rectList.push({
+            id : rectId
+        ,   checked : $(elm).find('.diff-check').prop("checked")
+        ,   label : $row.find('.rect-label').val()
+        ,   x : Number($row.find('.rect-x').val())
+        ,   y : Number($row.find('.rect-y').val())
+        ,   width : Number($row.find('.rect-w').val())
+        ,   height : Number($row.find('.rect-h').val())
+        });
+    });
+
+    var eps = $('#eps-bar').val() / 100 * 195075; // 255^2 + 255^2 + 255^2=195075
+
+    // 変更ページのみ再計算
+    calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, rectList);
 }
 
 $(function(){
@@ -433,7 +479,8 @@ $(function(){
     $('body').on('change', '.diff-check', function(event) {
         // diff側情報
         var rectId = $(event.target).closest('.diff-label-wrap').attr("data-rect-id");
-        var page = Number($(event.target).closest('.diff-tr').attr("data-page")) + 1;
+        var $diffTr = $(event.target).closest('.diff-tr');
+        var page = Number($diffTr.attr("data-page")) + 1;
         var checked = $(event.target).prop("checked");
 
         // rect側情報
@@ -451,14 +498,10 @@ $(function(){
             addRectDetail($detailTop, page);
         }
 
-/*
         // insert等の後のため、setTimeout
         setTimeout(function() {
-
-            // 全ページに影響するので再Diff
-            viewDiff();
+            reCalcViewDiff($diffTr);
         }, 1);
-//*/
     });
 });
 </script>
@@ -727,16 +770,15 @@ function doDiff() {
         // 差分文字列タグ取得
         var $diffTr = $('.diff-tr[data-page=' + idx + ']');
 
-
-        // rectを描画
-        viewDiffRect($diffTr, rectList);
+        // rectを取得
+        var pageRectList = getPageRectList(rectList, idx);
 
         // 差分計算し描画。時間がかかるためローディング
         setTimeout(function() {
             // loading件数を更新
             $('#loading').find('.loadingMsg').text("計算中：" + (idx + 1) + "/" + targetLen);
 
-            calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, rectList);
+            calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, pageRectList);
 
             deferred.resolve();
         }, 1);
@@ -755,6 +797,37 @@ function doDiff() {
         // 差分が変わるのでポップアップも再描画
         popWinReload();
     });
+}
+
+/**
+ * ページ単位でのrectListを作成する
+ */
+function getPageRectList(rectList, page) {
+    var pageRectList = [];
+    for (var idx = 0; idx < rectList.length; idx++) {
+        var rect = rectList[idx];
+
+        // 全体チェックと詳細チェックからチェック有無を導き出す
+        var details = rect.details;
+        var checked = rect.checked;
+        for (var rx = 0; rx < details.length; rx++) {
+            if (details[rx] == page) {
+                checked = !checked;
+                break;
+            }
+        }
+
+        pageRectList.push({
+            id : rect.id
+        ,   checked : checked
+        ,   label : rect.label
+        ,   x : rect.x
+        ,   y : rect.y
+        ,   width : rect.width
+        ,   height : rect.height
+        });
+    }
+    return pageRectList;
 }
 
 /**
@@ -793,6 +866,11 @@ function calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, rectList) {
         isDiff = true;
     }
     $diffTr.attr('data-diff', isDiff);
+
+    // 差分に領域名を表示
+    if (rectDiffResult) {
+        viewDiffRect($diffTr, rectList);
+    }
 }
 
 /**
@@ -1096,6 +1174,9 @@ function addRect(rect) {
 function viewDiffRect($diffTr, rectList){
     var $labelPos = $diffTr.find('.diff-label-pos');
     var page = $diffTr.attr('data-page');
+
+    // 古いものを削除して新しいものを描画
+    $diffTr.find('.diff-label-wrap').remove();
 
     for (var idx = 0; idx < rectList.length; idx++) {
         var $labelTag = $($("#diff-label-tag").render({page:page, rect:rectList[idx]}));
