@@ -516,7 +516,7 @@ $(function(){
      */
     $('#export').on('click', function(event) {
         var rectList = getRectList();
-        console.log(rectList);
+
         // 取得した画像リストをダウンロードできるようにする
         var link = getDownloadTag(JSON.stringify(rectList), (new Date()).getTime() + ".pdfrct");
         link.click();
@@ -864,6 +864,7 @@ function doDiff() {
         // 各ON/OFFが変わるので再toggle
         $('#light-toggle').change();
         $('#image-toggle').change();
+        $('#rect-toggle').change();
         $('#diff-toggle').change();
 
         // 差分が変わるのでポップアップも再描画
@@ -924,8 +925,8 @@ function calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, rectList) {
     var rectDiffResult = getRectDiffResult(epsDiffResult, rectList);
 
     // 領域描画
-    var orgRectCanvas = $orgImageTd.find('.canvas-light').get(0);
-    var dstRectCanvas = $dstImageTd.find('.canvas-light').get(0);
+    var orgRectCanvas = $orgImageTd.find('.canvas-rect').get(0);
+    var dstRectCanvas = $dstImageTd.find('.canvas-rect').get(0);
     drawRectList(orgRectCanvas, rectList);
     drawRectList(dstRectCanvas, rectList);
 
@@ -1208,16 +1209,16 @@ function getDiffText(diffResult) {
 /**
  * 指定canvasを取得する
  */
-function getCanvas(kbn, imageNo, isImage) {
+function getCanvas(kbn, imageNo, type) {
     var $imageTop = $('.image-top[data-kbn=' + kbn + ']');
     var $canvasImage = $imageTop.find('.canvas-image[data-image-no=' + imageNo + ']');
 
-    if (isImage) {
+    if (type == "image") {
         return $canvasImage.get(0);
     }
 
-    var $canvasLight = $canvasImage.siblings('.canvas-light');
-    return $canvasLight.get(0);
+    var findType = '.canvas-' + type;
+    return $canvasImage.siblings(findType).get(0);
 }
 
 /**
@@ -1282,15 +1283,10 @@ function popWinReload() {
 /**
  * ポップアップウィンドウの画像ON/OFF
  */
-function popWinToggle(isImage, checked) {
+function popWinToggle(canvasType, checked) {
     // 開いている場合のみ
     if(popWin && !popWin.closed) {
-        var elementId;
-        if (isImage) {
-            elementId = 'img-image';
-        } else {
-            elementId = 'img-light';
-        }
+        var elementId = 'img-' + canvasType;
         var $element = $(popWin.document.getElementById(elementId));
         if (checked) {
             $element.hide();
@@ -1426,7 +1422,7 @@ $(function(){
         } else {
             $('.canvas-light').show();
         }
-        popWinToggle(false, checked);
+        popWinToggle("light", checked);
     });
     /**
      * 画像Toggle時
@@ -1438,7 +1434,19 @@ $(function(){
         } else {
             $('.canvas-image').show();
         }
-        popWinToggle(true, checked);
+        popWinToggle("image", checked);
+    });
+    /**
+     * 矩形Toggle時
+     */
+    $('#rect-toggle').on('change',function(event){
+        const checked = $('#rect-toggle').prop("checked");
+        if (checked) {
+            $('.canvas-rect').hide();
+        } else {
+            $('.canvas-rect').show();
+        }
+        popWinToggle("rect", checked);
     });
     /**
      * 差分のないページToggle時

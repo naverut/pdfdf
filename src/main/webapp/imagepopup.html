@@ -12,7 +12,7 @@
 <div class="canvas-wrap" style="z-index:0">
     <img src="./img/invisible.png" id="cell-top" class="canvas-cell" style="z-index:5; -webkit-user-drag: none;"></img>
     <canvas id="canvas-draw" class="canvas-cell" style="z-index:4"></canvas>
-    <canvas id="canvas-rect" class="canvas-cell" style="z-index:3"></canvas>
+    <img id="img-rect"  class="canvas-cell" style="z-index:3"></img>
     <img id="img-light" class="canvas-cell" style="z-index:2"></img>
     <img id="img-image" class="canvas-cell" style="z-index:1"></img>
 </div>
@@ -41,13 +41,22 @@ function initLoad() {
 	const no = queryStrings["no"];
 
     // 親のcanvasを取得描画
-    var parentCanvasImage = window.opener.getCanvas(kbn, no, true);
-    var parentCanvasLight = window.opener.getCanvas(kbn, no, false);
+    var parentCanvasImage = window.opener.getCanvas(kbn, no, "image");
+    var parentCanvasLight = window.opener.getCanvas(kbn, no, "light");
+    var parentCanvasRect  = window.opener.getCanvas(kbn, no, "rect");
 
     var imgImage = $('#img-image').get(0);
     var imgLight = $('#img-light').get(0);
-    imgImage.src = parentCanvasImage.toDataURL();
-    imgLight.src = parentCanvasLight.toDataURL();
+    var imgRect  = $('#img-rect').get(0);
+    if (parentCanvasImage) {
+        imgImage.src = parentCanvasImage.toDataURL();
+    }
+    if (parentCanvasLight) {
+        imgLight.src = parentCanvasLight.toDataURL();
+    }
+    if (parentCanvasRect) {
+        imgRect.src = parentCanvasRect.toDataURL();
+    }
 
     // ウィンドウサイズを画像サイズに合わせる
     imgImage.onload = function() {
