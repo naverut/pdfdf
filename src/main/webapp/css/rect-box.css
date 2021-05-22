@@ -29,3 +29,10 @@
 .rect-link:visited{
 	color : #7777ff;
 }
+
+.rect-btn {
+    background-color: lightgray;
+    color: black;
+    font-weight: bold;
+    border: 1px solid #000;
+}

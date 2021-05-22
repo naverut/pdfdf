@@ -66,18 +66,19 @@
 </table>
 <script id="image-tag" type="text/x-jsrender">
     <tr class="image-tr pages" data-page="{{:idx}}">
-        <td valign="top" class="image-td" style="width: {{:cssWidth}}px; height : {{:cssHeight + 1}}px">
+        <td valign="top" class="image-td" style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px">
             <div class="canvas-wrap">
                 <canvas class="canvas-cell canvas-image" data-image-no="{{:idx}}" data-diff-no="X"
                   width="{{:width}}" height="{{:height}}"
                   style="width: {{:cssWidth}}px; height: {{:cssHeight}}px; z-index: 1;"></canvas>
                 <canvas class="canvas-cell canvas-light"
                   width="{{:width}}" height="{{:height}}"
-                  style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 2;"></canvas>
+                  style="width: {{:cssWidth}}px; height: {{:cssHeight}}px; z-index: 2;"></canvas>
                 <canvas class="canvas-cell canvas-rect"
                   width="{{:width}}" height="{{:height}}"
-                  style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 3;"></canvas>
-                <img src="./img/invisible.png" class="canvas-cell cell-top" style="width: {{:cssWidth}}px; height: {{:cssHeight + 1}}px; z-index: 4; display:none;"></img>
+                  style="width: {{:cssWidth}}px; height: {{:cssHeight}}px; z-index: 3;"></canvas>
+                <img src="./img/invisible.png" class="canvas-cell cell-top"
+                  style="width: {{:cssWidth}}px; height: {{:cssHeight}}px; z-index: 4; display:none;"></img>
             </div>
         </td>
         <td>
@@ -94,16 +95,18 @@
 </script>
 <script id="page-tag" type="text/x-jsrender">
     <tr class="page-tr pages" data-page="{{:idx}}">
-        <td style="height : {{:height + 1}}px">
+        <td style="height: {{:height}}px">
             <div>{{:idx + 1}}</div>
         </td>
     </tr>
 </script>
 <script id="diff-tag" type="text/x-jsrender">
     <tr class="diff-tr pages" data-page="{{:idx}}">
-        <td style="height : {{:height + 1}}px; display : flex; flex-direction: column;">
-            <div class="diff-result">計算中</div>
-            <div class="diff-label-pos"></div>
+        <td style="height: {{:height}}px;">
+            <div style="display : flex; flex-direction: column;">
+                <div class="diff-result">差分比較中</div>
+                <div class="diff-label-pos"></div>
+            </div>
         </td>
     </tr>
 </script>
@@ -152,10 +155,12 @@
                 <table border="1">
                     <tr>
                         <td colspan="7">
-                            <label style="background-color: white; color: black; font-weight: normal;" for="import">
+                            <label class="rect-btn" for="import">
                                 <span>読込</span><input id="import" type="file" accept=".pdfrct" style="display:none"/>
                             </label>
-                            <input type="button" id="export" value="保存" />
+                            <label class="rect-btn" for="import">
+                                <span>保存</span><input type="button" id="export" value="保存"  style="display:none"/>
+                            </label>
                         </td>
                     </tr>
                     <tr>

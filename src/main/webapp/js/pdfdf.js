@@ -6,8 +6,6 @@ const BASE64_POS = "base64,"
 function getFileBase64(file) {
 	var deferred = new $.Deferred;
 
-    dispLoading("ファイル取得");
-
     var fr = new FileReader();
     // jsでbase64化するとmime情報が設定される。
     // "base64,"以降を素のbase64とする
@@ -17,12 +15,10 @@ function getFileBase64(file) {
         if (pos < 0) {
             alert("ファイル取得失敗。やり直しをお願いします");
     		deferred.reject();
-    		removeLoading();
             return;
         }
         var base64 = base64withMime.substr(pos + BASE64_POS.length);
 		deferred.resolve(base64);
-        removeLoading();
     }
     fr.readAsDataURL(file);
 
@@ -35,13 +31,10 @@ function getFileBase64(file) {
 function getFileText(file) {
 	var deferred = new $.Deferred;
 
-    dispLoading("ファイル取得");
-
     var fr = new FileReader();
     fr.onload = function(evt) {
         var text = evt.target.result;
 		deferred.resolve(text);
-        removeLoading();
     }
     fr.readAsText(file);
 
@@ -49,32 +42,120 @@ function getFileText(file) {
 }
 
 /**
- * PDFの画像イメージをAPI取得する
+ * PDFを取得する
  */
 function getPdfImage(pdf64) {
 	var deferred = new $.Deferred;
 
-	dispLoading("イメージファイル取得中");
+    startMakeImage(pdf64).done(function(tid) {
+    	var checkDef = new $.Deferred;
+    	checkDef.promise();
+        var timerId = setInterval(function() {
+            checkPdfImage(tid).done(function(status){
+                refreshLoadingMessage("PDF画像化中：" + status.cnt + "/" + status.max);
+                if (status.fin) {
+                    wait = false;
+                    checkDef.resolve();
+                }
+            }).fail(function(res) {
+                checkDef.reject();
+                deferred.reject();
+                alert("エラー発生");
+                console.log(res);
+            });
+        }, 500);
+
+        checkDef.done(function() {
+            downloadPdfImage(tid).done(function(image64s){
+                deferred.resolve(image64s);
+            });
+        }).always(function() {
+            clearInterval(timerId);
+        });
+    });
+
+    return deferred.promise();
+}
+
+/**
+ * PDFの画像イメージ作成を開始する
+ */
+function startMakeImage(pdf64) {
+	var deferred = new $.Deferred;
+
+	dispLoading("イメージファイル取得開始");
     params = {"pdf64" : pdf64};
 
     $.ajax({
-        url: './pdf/image'
+        url: './pdf/image/start'
     ,   type: 'POST'
     ,   headers : { "content-type" : "application/json; charset=UTF-8" }
     ,   data : JSON.stringify(params)
     ,   dataType: 'json'
-    ,   timeout: 600000 // PDFの解析なので長めに待つ
+    ,   timeout: 100000 // PDFの送信なので長めに待つ
     }).done(function(result) {
         // 画像の一覧表示
-		removeLoading();
-		deferred.resolve(result.image64s);
+		deferred.resolve(result);
     }).fail(function(result) {
         // 一覧を削除してアラート表示
         $('.pages').remove();
+		deferred.reject(result);
         alert("エラー発生:");
+		console.log(result);
+    }).always(function() {
 		removeLoading();
     });
 
+	return deferred.promise();
+}
+
+/**
+ * PDFの画像イメージをAPI取得する
+ */
+function checkPdfImage(tid) {
+	var deferred = new $.Deferred;
+
+    $.ajax({
+        url: './pdf/image/status'
+    ,   type: 'GET'
+    ,   data : {tid:tid}
+    ,   dataType: 'json'
+    ,   timeout: 1000
+    }).done(function(result) {
+        deferred.resolve(result);
+    }).fail(function(result) {
+        // 一覧を削除してアラート表示
+        deferred.reject(result);
+        console.log(result);
+        alert("エラー発生:");
+    });
+	return deferred.promise();
+}
+
+/**
+ * PDFの画像イメージを取得する
+ */
+function downloadPdfImage(tid) {
+	var deferred = new $.Deferred;
+
+    dispLoading("ファイルダウンロード中");
+
+    $.ajax({
+        url: './pdf/image/data'
+    ,   type: 'POST'
+    ,   data : {tid:tid}
+    ,   dataType: 'json'
+    ,   timeout: 100000 // PDFの受信なので長めに待つ
+    }).done(function(result) {
+        deferred.resolve(result.image64s);
+    }).fail(function(result) {
+        // 一覧を削除してアラート表示
+        deferred.reject(result);
+        console.log(result);
+        alert("エラー発生:");
+    }).always(function() {
+        removeLoading();
+    });
 	return deferred.promise();
 }
 
@@ -91,6 +172,8 @@ function getCssHeight($tdTag) {
  * 画像比較テーブルをセットアップ
  */
 function setupImageTable($listTop, image64s) {
+	var deferred = new $.Deferred;
+
     // リスト初期化
     $listTop.find('.image-tr').remove();
     // 比較結果をクリア（orgの比較対象Noをクリア）
@@ -135,8 +218,14 @@ function setupImageTable($listTop, image64s) {
             $('.table-label').css("height", maxHeight);
 
             viewDiff();
+
+        	deferred.resolve();
         }, 1);
+    } else {
+        deferred.resolve();
     }
+
+	return deferred.promise();
 }
 
 /**
@@ -232,7 +321,7 @@ function doDiff() {
     // 領域リスト
     var rectList = getRectList();
 
-    dispLoading("計算中");
+    refreshLoadingMessage("差分比較中");
     $.each($target, function(idx, elm) {
         var deferred = new $.Deferred;
         defs.push(deferred);
@@ -256,10 +345,10 @@ function doDiff() {
         var maxHeight = Math.max(orgHeight, dstHeight);
 
         // 画像tdの高さもそろえる
-        $orgImageTd.css('height', maxHeight + 1);
-        $dstImageTd.css('height', maxHeight + 1);
+        $orgImageTd.css('height', maxHeight);
+        $dstImageTd.css('height', maxHeight);
 
-        var data = {"idx" : idx, "height" : maxHeight};
+        var data = {"idx" : idx, "height": maxHeight};
         // ページの表示
         var $addPage = $($('#page-tag').render(data));
         $addPage.insertBefore($pagePos);
@@ -277,7 +366,7 @@ function doDiff() {
         // 差分計算し描画。時間がかかるためローディング
         setTimeout(function() {
             // loading件数を更新
-            $('#loading').find('.loadingMsg').text("計算中：" + (idx + 1) + "/" + targetLen);
+            refreshLoadingMessage("差分比較中：" + (idx + 1) + "/" + targetLen);
 
             calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, pageRectList);
 
@@ -803,13 +892,20 @@ $(function(){
             ext = file.name.slice(extPos + 1).toLowerCase();
         }
 
+
+    	var deferred = new $.Deferred;
+    	deferred.promise();
+        dispLoading("ファイル取得中");
+
         if (ext == "pdf") {
             // PDFファイルをbase64化
             getFileBase64(file).done(function(base64){
                 // PDFのbase64ファイルをAPI送信して画像リスト取得
                 getPdfImage(base64).done(function(image64s){
                     // 画像リストをtableに配置
-                    setupImageTable($listTop, image64s);
+                    setupImageTable($listTop, image64s).always(function() {
+                    	deferred.resolve();
+                    });
 
                     // 取得した画像リストをダウンロードできるようにする
                     var link = getDownloadTag(JSON.stringify(image64s), file.name + ".pdfimg");
@@ -818,9 +914,12 @@ $(function(){
             });
         } else if (ext == "pdfimg") {
             // 画像リストをtableに配置
+            dispLoading("ファイル取得中");
             getFileText(file).done(function(str){
                 // 画像リストをtableに配置
-                setupImageTable($listTop, JSON.parse(str));
+                setupImageTable($listTop, JSON.parse(str)).always(function() {
+                    deferred.resolve();
+                });
 
                 // ファイル名表示
                 $fileName.text(file.name);
@@ -829,7 +928,13 @@ $(function(){
             alert("拡張子がおかしい");
             console.log(file.name);
             console.log(ext);
+
+            deferred.reject();
         }
+
+    	$.when(deferred).always(function(){
+            removeLoading();
+    	});
     });
     /**
      * 行追加押下時

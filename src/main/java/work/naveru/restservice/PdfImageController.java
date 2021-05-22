@@ -1,10 +1,8 @@
 package work.naveru.restservice;
 
 import org.springframework.util.Base64Utils;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-import work.naveru.MakeImage;
+import org.springframework.web.bind.annotation.*;
+import work.naveru.service.MakeImageAsync;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,40 +48,93 @@ public class PdfImageController {
         public List<String> getImage64s() {
             return this.image64s;
         }
-
     }
 
     /**
-     * PDFを画像化するAPI本体
+     * PDFを画像化を開始する
      * @param body 画像イメージ化するPDF情報
-     * @return Image64s 画像イメージをBASE64にしたリスト
+     * @return スレッドId
      * @throws Exception 例外
      */
-    @PostMapping("/pdf/image")
-    public Image64s getImage(@RequestBody PdfImageBody body) throws Exception {
-        // BASE64をdecode
-        byte[] pdf = Base64Utils.decodeFromString(body.getPdf64());
+    @PostMapping("/pdf/image/start")
+    public long startMakeImage(@RequestBody PdfImageBody body) throws Exception {
+        MakeImageAsync mk = new MakeImageAsync(body);
 
-        // DPI値のデフォルト設定
-        int dpi = MakeImage.DPI;
-        if (body.getDpi() > 1) {
-            dpi = body.getDpi();
+        long tid = mk.getId();
+        mk.start();
+
+        RestServiceApplication.map.put(tid, mk);
+
+        return tid;
+    }
+
+    /**
+     * 処理状態
+     */
+    @lombok.Getter
+    public static class MakeStatus {
+        /** 処理件数 */
+        private final int cnt;
+        /** 全ページ数 */
+        private final int max;
+        /** 終了状態 */
+        private final boolean fin;
+
+        /**
+         * コンストラクタ
+         * @param mk
+         */
+        public MakeStatus(MakeImageAsync mk) {
+            this.cnt = mk.getCnt();
+            this.max = mk.getMax();
+            this.fin = mk.isFin();
         }
-        // 画像ファイルタイプのデフォルト設定
-        String type = MakeImage.TYPE;
-        if (body.getType() != null) {
-            type = body.getType();
+    }
+
+    /**
+     * 処理状態を取得する
+     * @param id スレッドID
+     * @return MakeStatus 処理状態
+     */
+    @GetMapping("/pdf/image/status")
+    public MakeStatus checkStatus(@RequestParam(name="tid", required=true) Long id) {
+        MakeImageAsync mk = RestServiceApplication.map.get(id);
+
+        if (mk == null) {
+            return null;
         }
 
-        // 画像イメージ取得
-        List<byte[]> images = MakeImage.getPdfImage(pdf, dpi, type);
+        return new MakeStatus(mk);
+    }
 
-        // 画像をBASE64encodeしてリスト化
+    /**
+     * 処理が完了していればImage化データを返却する
+     * @param id スレッドID
+     * @return
+     */
+    @PostMapping("/pdf/image/data")
+    public Image64s getImage64s(@RequestParam(name="tid", required=true) Long id) {
+        MakeImageAsync mk = RestServiceApplication.map.get(id);
+
+        // 指定IDに対応するものがなければnull返却
+        if (mk == null) {
+            return null;
+        }
+
         Image64s result = new Image64s();
+
+        // 終わってなければ空で返す
+        if (!mk.isFin()) {
+            return result;
+        }
+
+        List<byte[]> images = mk.getImageList();
         for (int i = 0; i < images.size(); i++) {
             String image64 = Base64Utils.encodeToString(images.get(i));
             result.add(image64);
         }
+        RestServiceApplication.map.put(id, null);
+        mk = null;
 
         return result;
     }

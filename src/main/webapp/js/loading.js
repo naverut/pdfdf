@@ -20,3 +20,11 @@ function removeLoading(){
 	$("#loading").remove();
 }
 
+function refreshLoadingMessage(msg) {
+    var $loading = $('#loading');
+    if (!$loading.get(0)) {
+        dispLoading(msg);
+        return;
+    }
+    $loading.find('.loadingMsg').text(msg);
+}
