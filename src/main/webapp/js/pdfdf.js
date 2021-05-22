@@ -63,7 +63,7 @@ function getPdfImage(pdf64) {
                 alert("エラー発生");
                 console.log(res);
             });
-        }, 500);
+        }, 1000);
 
         checkDef.done(function() {
             downloadPdfImage(tid).done(function(image64s){
@@ -120,7 +120,7 @@ function checkPdfImage(tid) {
     ,   type: 'GET'
     ,   data : {tid:tid}
     ,   dataType: 'json'
-    ,   timeout: 1000
+    ,   timeout: 10000
     }).done(function(result) {
         deferred.resolve(result);
     }).fail(function(result) {
