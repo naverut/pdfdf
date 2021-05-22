@@ -205,6 +205,7 @@ function setupImageTable($listTop, image64s) {
             $('.page-table').show();
             $('.diff-table').show();
             $('#rect-box').show();
+            $('#view-control').show();
             $('.cell-top').show();
 
             // テーブルラベルの高さをそろえる
