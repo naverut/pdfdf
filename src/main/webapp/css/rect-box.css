@@ -1,0 +1,31 @@
+#rect-box{
+    position: fixed;
+    top: 20px;
+    right: 20px;
+
+    color : #7777ff;
+    background-color: #002525;
+    opacity: 0.75;
+    border-radius: 24px;
+    text-align: center;
+    font-weight: bold;
+    margin: 0px;
+    padding: 10px;
+}
+
+#rect-elm {
+    text-align: center;
+}
+.rect-text {
+    width: 30px;
+}
+
+.rect-link{
+    font-weight:bold;
+}
+.rect-link:link{
+	color : #7777ff;
+}
+.rect-link:visited{
+	color : #7777ff;
+}
