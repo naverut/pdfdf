@@ -38,6 +38,25 @@ function initLoad() {
         imgRect.src = parentCanvasRect.toDataURL();
     }
 
+    var imageCheck = $(window.opener.document.getElementById("image-toggle")).prop("checked");
+    if (imageCheck) {
+        $('#img-image').hide();
+    } else {
+        $('#img-image').show();
+    }
+    var lightCheck = $(window.opener.document.getElementById("light-toggle")).prop("checked");
+    if (lightCheck) {
+        $('#img-light').hide();
+    } else {
+        $('#img-light').show();
+    }
+    var rectCheck = $(window.opener.document.getElementById("rect-toggle")).prop("checked");
+    if (rectCheck) {
+        $('#img-rect').hide();
+    } else {
+        $('#img-rect').show();
+    }
+
     // ウィンドウサイズを画像サイズに合わせる
     imgImage.onload = function() {
         resizeWindow(imgImage.naturalWidth, imgImage.naturalHeight);

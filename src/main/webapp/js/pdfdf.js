@@ -380,6 +380,7 @@ function doDiff() {
     // 全差分完了後に再描画処理
     $.when.apply($, defs).done(function() {
         removeLoading();
+
         // 各ON/OFFが変わるので再toggle
         $('#light-toggle').change();
         $('#image-toggle').change();
@@ -849,11 +850,17 @@ function getRectList() {
  * 領域描画
  */
 function drawRectList(canvas, rectList) {
-    // 空行は何もしない
+    const context = canvas.getContext("2d");
+
+	const width = canvas.getAttribute("width");
+	const height = canvas.getAttribute("height");
+	context.clearRect(0, 0, width, height);
+
+    // 空行は描画なし
     if (!canvas) {
         return;
     }
-    const context = canvas.getContext("2d");
+
     for (var cnt = 0; cnt < rectList.length; cnt++) {
         var rect = rectList[cnt];
         if (rect.checked) {
