@@ -19,9 +19,10 @@ public class AsyncWatcher {
                 if (targetSet.contains(entry.getKey())) {
                     MakeImageAsync mk = entry.getValue();
                     mk = null;
-                    AsyncWatcher.map.put(entry.getKey(), null);
+                    AsyncWatcher.map.remove(entry.getKey());
                     targetSet.remove(entry.getKey());
                 }
+                targetSet.add(entry.getKey());
             }
             try {
                 Thread.sleep(HOUR_1);
