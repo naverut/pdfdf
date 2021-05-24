@@ -1,0 +1,58 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>PDF DF メモリ監視</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <script src="./js/jquery-3.6.0.min.js"></script>
+    <script src="./js/jsrender.min.js"></script>
+    <script src="./js/loading.js"></script>
+</head>
+<body>
+
+<div id="watch"></div>
+<script id="watch-tag" type="text/x-jsrender">
+    <div>
+        memory:{{:target.memory}} / {{:target.max}}<br/>
+        {{for target.targets}}
+            id:{{:id}} : {{:status.cnt}}/{{:status.max}} | {{:status.fin}}<br/>
+        {{/for}}
+    </div>
+</script>
+
+
+<script>
+/**
+ * PDFDF監視情報取得する
+ */
+function watch() {
+	var deferred = new $.Deferred;
+
+    $.ajax({
+        url: './pdf/image/watch'
+    ,   type: 'GET'
+    ,   data : {}
+    ,   dataType: 'json'
+    ,   timeout: 10000
+    }).done(function(result) {
+        deferred.resolve(result);
+    }).fail(function(result) {
+        // 一覧を削除してアラート表示
+        deferred.reject(result);
+        console.log(result);
+        alert("エラー発生:");
+    });
+	return deferred.promise();
+}
+
+$(function(){
+    setInterval(function() {
+        watch().done(function(result) {
+            console.log(result);
+            var $tag = $($('#watch-tag').render({target:result}));
+            $('#watch').html($tag);
+        });
+    }, 1000);
+});
+</script>
+</body>
+</html>
