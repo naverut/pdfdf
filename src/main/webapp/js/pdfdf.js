@@ -437,7 +437,6 @@ function calcViewDiff($orgImageTd, $dstImageTd, $diffTr, eps, rectList) {
     // 差分点の描画
     var orgLightCanvas = $orgImageTd.find('.canvas-light').get(0);
     var dstLightCanvas = $dstImageTd.find('.canvas-light').get(0);
-
     drawDiffLight(orgLightCanvas, epsDiffResult);
     drawDiffLight(dstLightCanvas, epsDiffResult);
 
@@ -850,16 +849,16 @@ function getRectList() {
  * 領域描画
  */
 function drawRectList(canvas, rectList) {
+    // 空行は描画なし
+    if (!canvas) {
+        return;
+    }
+
     const context = canvas.getContext("2d");
 
 	const width = canvas.getAttribute("width");
 	const height = canvas.getAttribute("height");
 	context.clearRect(0, 0, width, height);
-
-    // 空行は描画なし
-    if (!canvas) {
-        return;
-    }
 
     for (var cnt = 0; cnt < rectList.length; cnt++) {
         var rect = rectList[cnt];

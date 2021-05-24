@@ -162,6 +162,9 @@ public class PdfImageController {
         List<WatchTarget> targetList = new ArrayList<>();
 
         for (Map.Entry<Long, MakeImageAsync> entry : AsyncWatcher.map.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
             targetList.add(new WatchTarget(entry.getKey(), new MakeStatus(entry.getValue())));
         }
 
@@ -171,7 +174,7 @@ public class PdfImageController {
     /**
      * 処理が完了していればImage化データを返却する
      * @param id スレッドID
-     * @return
+     * @return PDFイメージ
      */
     @PostMapping("/pdf/image/data")
     public Image64s getImage64s(@RequestParam(name="tid", required=true) Long id) {
@@ -194,7 +197,7 @@ public class PdfImageController {
             String image64 = Base64Utils.encodeToString(images.get(i));
             result.add(image64);
         }
-        AsyncWatcher.map.put(id, null);
+        AsyncWatcher.map.remove(id);
         mk = null;
 
         return result;
