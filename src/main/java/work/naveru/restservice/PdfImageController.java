@@ -2,10 +2,13 @@ package work.naveru.restservice;
 
 import org.springframework.util.Base64Utils;
 import org.springframework.web.bind.annotation.*;
+import work.naveru.service.AsyncWatcher;
 import work.naveru.service.MakeImageAsync;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * PDFファイルを画像で返却するAPI
@@ -63,7 +66,7 @@ public class PdfImageController {
         long tid = mk.getId();
         mk.start();
 
-        RestServiceApplication.map.put(tid, mk);
+        AsyncWatcher.map.put(tid, mk);
 
         return tid;
     }
@@ -98,7 +101,7 @@ public class PdfImageController {
      */
     @GetMapping("/pdf/image/status")
     public MakeStatus checkStatus(@RequestParam(name="tid", required=true) Long id) {
-        MakeImageAsync mk = RestServiceApplication.map.get(id);
+        MakeImageAsync mk = AsyncWatcher.map.get(id);
 
         if (mk == null) {
             return null;
@@ -108,13 +111,71 @@ public class PdfImageController {
     }
 
     /**
+     * 処理状態
+     */
+    @lombok.Getter
+    public static class WatchStatus {
+        /** メモリ */
+        private final long memory;
+        /** 全メモリ */
+        private final long max;
+        /** 全処理 */
+        private final List<WatchTarget> targets;
+
+        /**
+         * コンストラクタ
+         * @param targets
+         */
+        public WatchStatus(List<WatchTarget> targets) {
+            this.memory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+            this.max = Runtime.getRuntime().maxMemory();
+            this.targets = targets;
+        }
+    }
+    /**
+     * 処理状態
+     */
+    @lombok.Getter
+    public static class WatchTarget {
+        /** ID */
+        private final Long id;
+        /** ステータス */
+        private final MakeStatus status;
+
+        /**
+         * コンストラクタ
+         * @param id ID
+         * @param status ステータス
+         */
+        public WatchTarget(Long id, MakeStatus status) {
+            this.id = id;
+            this.status = status;
+        }
+    }
+
+    /**
+     * 全処理を取得する
+     * @return Map 全処理
+     */
+    @GetMapping("/pdf/image/watch")
+    public WatchStatus getWatchStatus() {
+        List<WatchTarget> targetList = new ArrayList<>();
+
+        for (Map.Entry<Long, MakeImageAsync> entry : AsyncWatcher.map.entrySet()) {
+            targetList.add(new WatchTarget(entry.getKey(), new MakeStatus(entry.getValue())));
+        }
+
+        return new WatchStatus(targetList);
+    }
+
+    /**
      * 処理が完了していればImage化データを返却する
      * @param id スレッドID
      * @return
      */
     @PostMapping("/pdf/image/data")
     public Image64s getImage64s(@RequestParam(name="tid", required=true) Long id) {
-        MakeImageAsync mk = RestServiceApplication.map.get(id);
+        MakeImageAsync mk = AsyncWatcher.map.get(id);
 
         // 指定IDに対応するものがなければnull返却
         if (mk == null) {
@@ -133,7 +194,7 @@ public class PdfImageController {
             String image64 = Base64Utils.encodeToString(images.get(i));
             result.add(image64);
         }
-        RestServiceApplication.map.put(id, null);
+        AsyncWatcher.map.put(id, null);
         mk = null;
 
         return result;
